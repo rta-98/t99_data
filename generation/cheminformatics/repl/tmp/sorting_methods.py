@@ -4,8 +4,9 @@ from modules.data.bridge import *
 from typing import Optional, List 
 from dataclasses import dataclass 
 from rdkit import Chem
+from rdkit.Chem import rdchem
 from rdkit.Chem import rdMolTransforms, rdMolDescriptors
-from rdkit.Chem.rdchem import Mol
+from rdkit.Chem.rdchem import Mol, HybridizationType
 from pathlib import Path 
 from itertools import zip_longest, product 
 from collections import Counter 
@@ -140,7 +141,7 @@ def analyzer(name, smiles, mol):
     num_atoms_dict = count_atoms(mol) 
     analyzer_dict["Global: Rot Bonds"] = calc_rot(mol) 
     for atom, atom_count in num_atoms_dict.items():
-        analyzer_dict[f"{atom} Count"] = atom_count
+        analyzer_dict[f"Global {atom} Count"] = atom_count
 
     # parsing count_motif() dict output; appending to analyzer dict
     motif_dict = count_motif(mol) 
@@ -163,12 +164,14 @@ def count_atoms(mol):
     cnt = Counter() 
     for atom in mol.GetAtoms():
         Z = atom.GetAtomicNum()
+        hybrid = atom.GetHybridization()
         if Z > 0: 
             E = Chem.GetPeriodicTable().GetElementSymbol(Z)
         else: 
             E = f"query({atom.GetSmarts()})" 
-        cnt[E] += 1
-    return dict(cnt) 
+        cnt[f"{hybrid} {E}"] += 1
+
+    return dict(cnt)  
 
 def count_motif(mol): 
     # creates a map
@@ -178,7 +181,6 @@ def count_motif(mol):
         Chem.BondType.TRIPLE: "bo 3.0",
         Chem.BondType.AROMATIC: "bo 1.5",
     }
-
     # creates first dict. (the inner-most, ultimately set to nest inside result)
     bonds_in_mol = {
         "bo 1.0": [],
@@ -206,9 +208,17 @@ def count_motif(mol):
         e1 = Chem.GetPeriodicTable().GetElementSymbol(z1) if z1 > 0 else atom1.GetSmarts() 
         e2 = Chem.GetPeriodicTable().GetElementSymbol(z2) if z2 > 0 else atom2.GetSmarts() 
         
+        # obtain hybridization of atoms in motif 
+        hybrid1 = atom1.GetHybridization()
+        hybrid2 = atom2.GetHybridization() 
+        hyb_atom_dict = {e1: hybrid1, e2: hybrid2}
+        a, b = sorted((e1, e2))
+        hyb1_str = f"{hyb_atom_dict[a]}".lower()
+        hyb2_str = f"{hyb_atom_dict[b]}".lower()
+
         # append atomic symbols (E) to the bonds_in_mol dict.
         bonds_in_mol[bond_type_mapped].append({
-            "Bond Pair ID": "-".join(sorted((e1, e2))),
+            "Bond Pair ID": f"{a}{hyb1_str}-{b}{hyb2_str}"
         }) 
     
     # The nested dictionary result is initialized
@@ -232,9 +242,8 @@ def count_motif(mol):
                     pair_count_dict[name] = pair_count_dict.get(name, 0) + 1 # alternative to dict[key] += 1 
                 else:
                     pair_count_dict[name] = 0
-
             for pair_name, pair_count in pair_count_dict.items():
-                motif_result[f"Local: {bond_key} {pair_name}"] = pair_count
+                motif_result[f"{bond_key} {pair_name}"] = pair_count
 
     return motif_result 
 
@@ -271,51 +280,67 @@ def count_dihedral(mol, template_key: str, template_val: str):
         for m, n in product(i, l):
             if m == n:
                 continue
-
             num_torsions += 1
             atoms = [mol.GetAtomWithIdx(idx) for idx in (m, j, k, n)]
+            atom_symbols = [a.GetSymbol() for a in atoms]
+            hybrids = [atom.GetHybridization() for atom in atoms]
+            torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}{hybrids[1]}-{atom_symbols[2]}{hybrids[2]}-{atom_symbols[3]}"
+
+            #print(torsion_string)
+            #print(hybrids)
             atom_symbols = tuple(a.GetSymbol() for a in atoms) 
 
             # label being X-X-X-X, a key for torsion_counts dict. 
-            label = "-".join(atom_symbols) 
+            #label = "-".join(atom_symbols) 
 
             # if label/key exists, append increment
-            torsion_counts[label] = torsion_counts.get(label, 0) + 1 
+            torsion_counts[torsion_string] = torsion_counts.get(torsion_string, 0) + 1 
 
     # Combining superimposable molecular labels 
-    stored_HCCC_labels = {} 
-    for label, val in torsion_counts.items():
-        if label == 'H-C-C-C' or label == 'C-C-C-H':
-            stored_HCCC_labels['*H-C-C-C'] = stored_HCCC_labels.get('*H-C-C-C', 0) + val 
-
-    stored_FCCC_labels = {} 
-    for label, val in torsion_counts.items():
-        if label == 'F-C-C-C' or label == 'C-C-C-F':
-            stored_FCCC_labels['*F-C-C-C'] = stored_FCCC_labels.get('*F-C-C-C', 0) + val 
-
-    torsion_counts.update(stored_FCCC_labels) 
-    torsion_counts.update(stored_HCCC_labels) 
+#    stored_HCCC_labels = {} 
+#    for label, val in torsion_counts.items():
+#        if label == 'H-C-C-C' or label == 'C-C-C-H':
+#            stored_HCCC_labels['*H-C-C-C'] = stored_HCCC_labels.get('*H-C-C-C', 0) + val 
+#
+#    stored_FCCC_labels = {} 
+#    for label, val in torsion_counts.items():
+#        if label == 'F-C-C-C' or label == 'C-C-C-F':
+#            stored_FCCC_labels['*F-C-C-C'] = stored_FCCC_labels.get('*F-C-C-C', 0) + val 
+#
+#    torsion_counts.update(stored_FCCC_labels) 
+#    torsion_counts.update(stored_HCCC_labels) 
 
     torsions_result = {}
     for label, val in torsion_counts.items():
-        torsions_result[f"Local: {label} {template_key}"] = val 
+        torsions_result[f"{label} {template_key}"] = val 
 
     if num_torsions != 0:
         torsions_result[f"Global: {template_key}"] = num_torsions
 
-    return torsions_result
+    #return torsions_result
 
 #|%%--%%| <gPpYHhvciX|C2CdsMCP6n>
 mol_10 = mol_202_list[1:10]
-
+"""---------------------------------"""
 atoms_list = []
 motif_list = [] 
-
+dihedral_list = []
+"""---------------------------------"""
 for mol in mol_10:
     atom_rd = count_atoms(mol)
     motif_rd = count_motif(mol)
+    for key, val in TEMPLATES.items():
+        dihedral_rd = count_dihedral(mol, template_key=key, template_val=val)
+
     atoms_list.append(atom_rd)
     motif_list.append(motif_rd)
+    dihedral_list.append(dihedral_rd)
+"""---------------------------------"""
+#atoms_list
+#motif_list
+dihedral_list
 
-atoms_list
-motif_list
+list(rdchem.HybridizationType.names.keys())
+
+
+
