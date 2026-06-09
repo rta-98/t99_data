@@ -165,11 +165,12 @@ def count_atoms(mol):
     for atom in mol.GetAtoms():
         Z = atom.GetAtomicNum()
         hybrid = atom.GetHybridization()
+        hybrid_str = f"{hybrid}".lower()
         if Z > 0: 
             E = Chem.GetPeriodicTable().GetElementSymbol(Z)
         else: 
             E = f"query({atom.GetSmarts()})" 
-        cnt[f"{hybrid} {E}"] += 1
+        cnt[f"{E}{hybrid_str}"] += 1
 
     return dict(cnt)  
 
@@ -271,6 +272,8 @@ def count_dihedral(mol, template_key: str, template_val: str):
         atom_k = mol.GetAtomWithIdx(k)
         hybrid_j = atom_j.GetHybridization()
         hybrid_k = atom_k.GetHybridization()
+        hybrid_j_str = f"{hybrid_j}".lower()
+        hybrid_k_str = f"{hybrid_k}".lower()
 
         # Neighbor atoms not including k (left side)
         i = [n.GetIdx() for n in atom_j.GetNeighbors() if n.GetIdx() != k and n.GetAtomicNum()]
@@ -291,7 +294,7 @@ def count_dihedral(mol, template_key: str, template_val: str):
             atom_symbols_str = '-'.join(atom_symbols)
             hybrids = [atom.GetHybridization() for atom in atoms]
             hybrids_str = [f"{hybrid}".lower() for hybrid in hybrids]
-            torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}{hybrid_j}-{atom_symbols[2]}{hybrid_k}-{atom_symbols[3]}"
+            torsion_string = f"{atom_symbols[0]}{hybrids[0]}-{atom_symbols[1]}{hybrids[1]}-{atom_symbols[2]}{hybrids[2]}-{atom_symbols[3]}{hybrids[3]}"
 
             # if label/key exists, append increment
             key_dict = {torsion_string: atom_symbols_str} 
@@ -300,30 +303,45 @@ def count_dihedral(mol, template_key: str, template_val: str):
     
     dedup_dict = {}  
     combined_dict = {} 
+    compare_dict = {} 
     summand_dict = {}
     dropxs = []
     dropys = []
     seen = set() 
     non_matches = set()
     for x, ((key1, val1), (key2, val2)) in enumerate(zip(normal_dict.items(), torsion_counts.items())):
+#        print(f"iter {x} loop1")
+#        print(key1)
+#        print("\n")
         fwd = key1 
         rev = rev_tor_label(key1)
         seen.add(key1) 
         for y, ((inner_key1, inner_val1), (inner_key2, inner_val2)) in enumerate(zip(normal_dict.items(), torsion_counts.items())):
+#            print(f"iter {y} loop2")
+#            print(inner_key1)
+#            print("\n")
             if x != y and rev == inner_key1 and inner_key1 not in seen: 
+#                print(f"iter+cond {y}")
+#                print(f"outer/key1: {key1}")
+#                print(f"inner/inner_key1: {inner_key1}")
+#                print("\n")
                 dedup_dict[key1] = val1
                 dedup_dict[inner_key1] = inner_val1 
                 combined_dict[f"*{key2}"] = inner_val1 + val1 
+            #    compare_dict[f"*{key1}"] = inner_val1 + val1 
             if key1 not in dedup_dict and inner_key1 in dedup_dict:
+#                print(f"iter+cond2 key1: {key1}")
+#                print(f"iter+cond2 inner_key1: {inner_key1}")
                 combined_dict[key2] = val2
+            #    compare_dict[key1] = val1
 
     drop_list = []
 
     #torsion_counts.update(combined_dict)
-    for x in dropxs: 
-        torsion_counts.pop(x, None)
-    for y in dropys: 
-        torsion_counts.pop(y, None)
+#    for x in dropxs: 
+#        torsion_counts.pop(x, None)
+#    for y in dropys: 
+#        torsion_counts.pop(y, None)
 
     torsions_result = {}
     for label, val in torsion_counts.items():
@@ -332,10 +350,10 @@ def count_dihedral(mol, template_key: str, template_val: str):
     if num_torsions != 0:
         torsions_result[f"Global: {template_key}"] = num_torsions
 
-    return combined_dict, dedup_dict
+    return combined_dict, torsion_counts
 
 #|%%--%%| <gPpYHhvciX|C2CdsMCP6n>
-mol_10 = mol_202_list[1:12]
+mol_10 = mol_202_list[1:2]
 """---------------------------------"""
 atoms_list = []
 motif_list = [] 
@@ -353,10 +371,11 @@ for mol in mol_10:
     dihedral_list0.append(dihedral_rd[0])
     dihedral_list1.append(dihedral_rd[1])
 """---------------------------------"""
-#atoms_list
-#motif_list
+atoms_list
+motif_list
+dihedral_list0
 dihedral_list1
-#dihedral_list1
+#dihedral_list0
 
 #list(rdchem.HybridizationType.names.keys())
 
