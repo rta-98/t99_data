@@ -1,3 +1,5 @@
+import os 
+os.chdir('/home/yang/projects/t99_calc/data/generation/cheminformatics')
 from modules.app.services import *
 from modules.app.display import * 
 from modules.data.bridge import *
@@ -20,6 +22,7 @@ from rdkit.Chem import MolFromSmiles
 from modules.data import bridge
 from modules.data import sorting 
 #|%%--%%| <C2CdsMCP6n|PgCmb6jmux>
+os.chdir('/home/yang/projects/t99_calc/data/')
 base = Path.cwd()
 
 # parent directories 
@@ -294,13 +297,54 @@ def count_dihedral(mol, template_key: str, template_val: str):
             atom_symbols_str = '-'.join(atom_symbols)
             hybrids = [atom.GetHybridization() for atom in atoms]
             hybrids_str = [f"{hybrid}".lower() for hybrid in hybrids]
-            torsion_string = f"{atom_symbols[0]}{hybrids[0]}-{atom_symbols[1]}{hybrids[1]}-{atom_symbols[2]}{hybrids[2]}-{atom_symbols[3]}{hybrids[3]}"
+            torsion_string = f"{atom_symbols[0]}{hybrids_str[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}{hybrids_str[3]}"
 
             # if label/key exists, append increment
-            key_dict = {torsion_string: atom_symbols_str} 
+ #           key_dict = {torsion_string: atom_symbols_str} 
             torsion_counts[torsion_string] = torsion_counts.get(torsion_string, 0) + 1 
+#            print(torsion_counts)
             normal_dict[atom_symbols_str] = normal_dict.get(atom_symbols_str, 0) + 1 
     
+#    dedup_dict = {}  
+#    combined_dict = {} 
+#    compare_dict = {} 
+#    summand_dict = {}
+#    dropxs = []
+#    dropys = []
+#    seen = set() 
+#    non_matches = set()
+#    for x, ((key1, val1), (key2, val2)) in enumerate(zip(normal_dict.items(), torsion_counts.items())):
+##        print(f"iter {x} loop1")
+##        print(key1)
+##        print("\n")
+#        fwd = key2 
+#        print(fwd)
+#        print("\n")
+#        print(key1)
+#        rev = rev_tor_label(key2)
+#        #print(key2)
+#        seen.add(key2) 
+#        for y, ((inner_key1, inner_val1), (inner_key2, inner_val2)) in enumerate(zip(normal_dict.items(), torsion_counts.items())):
+##            print(f"iter {y} loop2")
+##            print(inner_key1)
+##            print("\n")
+#            if x != y and rev == inner_key2 and inner_key2 not in seen: 
+#                
+##                print(f"iter+cond {y}")
+##                print(f"outer/key1: {key1}")
+##                print(f"inner/inner_key1: {inner_key1}")
+##                print("\n")
+#                dedup_dict[key2] = val2
+#                dedup_dict[inner_key2] = inner_val2
+#                combined_dict[f"*{key2}"] = inner_val2 + val2
+##                continue
+#            #    compare_dict[f"*{key1}"] = inner_val1 + val1 
+#            if key2 not in dedup_dict: 
+##                print(f"iter+cond2 key1: {key1}")
+##                print(f"iter+cond2 inner_key1: {inner_key1}")
+#                combined_dict[key2] = val2
+#            #    compare_dict[key1] = val1
+#
     dedup_dict = {}  
     combined_dict = {} 
     compare_dict = {} 
@@ -309,56 +353,45 @@ def count_dihedral(mol, template_key: str, template_val: str):
     dropys = []
     seen = set() 
     non_matches = set()
-    for x, ((key1, val1), (key2, val2)) in enumerate(zip(normal_dict.items(), torsion_counts.items())):
-#        print(f"iter {x} loop1")
-#        print(key1)
-#        print("\n")
-        fwd = key1 
+    for x, (key1, val1) in enumerate(torsion_counts.items()):
+        fwd = key1
+        #print(fwd)
+       # print("\n")
         rev = rev_tor_label(key1)
+       # print(rev)
+        #print(key2)
         seen.add(key1) 
-        for y, ((inner_key1, inner_val1), (inner_key2, inner_val2)) in enumerate(zip(normal_dict.items(), torsion_counts.items())):
-#            print(f"iter {y} loop2")
-#            print(inner_key1)
-#            print("\n")
+        for y, (inner_key1, inner_val1) in enumerate(torsion_counts.items()):
             if x != y and rev == inner_key1 and inner_key1 not in seen: 
-#                print(f"iter+cond {y}")
-#                print(f"outer/key1: {key1}")
-#                print(f"inner/inner_key1: {inner_key1}")
-#                print("\n")
                 dedup_dict[key1] = val1
-                dedup_dict[inner_key1] = inner_val1 
-                combined_dict[f"*{key2}"] = inner_val1 + val1 
-            #    compare_dict[f"*{key1}"] = inner_val1 + val1 
+                dedup_dict[inner_key1] = inner_val1
+                combined_dict[f"*{key1}"] = inner_val1 + val1
+#                continue
             if key1 not in dedup_dict and inner_key1 in dedup_dict:
-#                print(f"iter+cond2 key1: {key1}")
-#                print(f"iter+cond2 inner_key1: {inner_key1}")
-                combined_dict[key2] = val2
-            #    compare_dict[key1] = val1
+                combined_dict[key1] = val1
 
     drop_list = []
 
-    #torsion_counts.update(combined_dict)
-#    for x in dropxs: 
-#        torsion_counts.pop(x, None)
-#    for y in dropys: 
-#        torsion_counts.pop(y, None)
-
     torsions_result = {}
-    for label, val in torsion_counts.items():
+    for label, val in combined_dict.items():
         torsions_result[f"{label} {template_key}"] = val 
-
     if num_torsions != 0:
         torsions_result[f"Global: {template_key}"] = num_torsions
 
-    return combined_dict, torsion_counts
-
-#|%%--%%| <gPpYHhvciX|C2CdsMCP6n>
-mol_10 = mol_202_list[1:2]
+    return dedup_dict, combined_dict
+        
+#|%%--%%| <gPpYHhvciX|P3VTxeLmfm>
+mol_10 = mol_202_list[1:19]
+for mol in mol_10:
+    smiles = Chem.MolToSmiles(mol)
+    print(smiles)
 """---------------------------------"""
 atoms_list = []
 motif_list = [] 
+
 dihedral_list0 = []
 dihedral_list1 = []
+dihedral_list2 = []
 """---------------------------------"""
 for mol in mol_10:
     atom_rd = count_atoms(mol)
@@ -370,14 +403,48 @@ for mol in mol_10:
     motif_list.append(motif_rd)
     dihedral_list0.append(dihedral_rd[0])
     dihedral_list1.append(dihedral_rd[1])
+
 """---------------------------------"""
 atoms_list
 motif_list
-dihedral_list0
+
+#dihedral_list1
 dihedral_list1
-#dihedral_list0
+dihedral_list0
+#dihedral_list2
 
+#amalgam = normalize_torsions(dihedral_list1)[0]
+
+#amalgam
+#normal
+#amalgam
 #list(rdchem.HybridizationType.names.keys())
-
-
-
+#|%%--%%| <P3VTxeLmfm|C2CdsMCP6n>
+#def normalize_torsions(torsion_dicts: list):
+#    amalgam_dict = {} 
+#    filtered_dict = {} 
+#    dedup_dict = {}
+#    normalized_dict = {}
+#    seen_filtered = set() C([H])([H])=C([H])C(F)(F)C(F)(F)C(F)(F)C(F)(F)C(F)(F)F
+##    seen_unfilted = set()
+#    for torsion_dict in torsion_dicts:
+#        for key, val in torsion_dict.items():
+#            amalgam_dict[key] = val
+#    for key, val in amalgam_dict.items():
+#        if "*" in key:
+#            filtered_dict[key] = val 
+#    for x, (key, val) in enumerate(filtered_dict.items()):
+#        strip = key.lstrip("*").split()[0]
+#        key = strip 
+#        fwd = key
+#        rev = rev_tor_label(key)
+#        seen_filtered.add(key) 
+#        for y, (inner_key, inner_val) in enumerate(filtered_dict.items()):
+#            if x != y and rev == inner_key and inner_key not in seen_filtered: 
+#                dedup_dict[key] = val
+#                dedup_dict[inner_key] = inner_val
+#                normalized_dict[f"*{key}"] = val + inner_val
+#            if key not in dedup_dict and inner_key in dedup_dict:
+#                normalized_dict[key] = val
+#        
+#    return amalgam_dict, filtered_dict
