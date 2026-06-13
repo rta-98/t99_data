@@ -298,93 +298,54 @@ def count_dihedral(mol, template_key: str, template_val: str):
             hybrids = [atom.GetHybridization() for atom in atoms]
             hybrids_str = [f"{hybrid}".lower() for hybrid in hybrids]
             torsion_string = f"{atom_symbols[0]}{hybrids_str[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}{hybrids_str[3]}"
-
-            # if label/key exists, append increment
- #           key_dict = {torsion_string: atom_symbols_str} 
             torsion_counts[torsion_string] = torsion_counts.get(torsion_string, 0) + 1 
-#            print(torsion_counts)
             normal_dict[atom_symbols_str] = normal_dict.get(atom_symbols_str, 0) + 1 
     
-#    dedup_dict = {}  
-#    combined_dict = {} 
-#    compare_dict = {} 
-#    summand_dict = {}
-#    dropxs = []
-#    dropys = []
-#    seen = set() 
-#    non_matches = set()
-#    for x, ((key1, val1), (key2, val2)) in enumerate(zip(normal_dict.items(), torsion_counts.items())):
-##        print(f"iter {x} loop1")
-##        print(key1)
-##        print("\n")
-#        fwd = key2 
-#        print(fwd)
-#        print("\n")
-#        print(key1)
-#        rev = rev_tor_label(key2)
-#        #print(key2)
-#        seen.add(key2) 
-#        for y, ((inner_key1, inner_val1), (inner_key2, inner_val2)) in enumerate(zip(normal_dict.items(), torsion_counts.items())):
-##            print(f"iter {y} loop2")
-##            print(inner_key1)
-##            print("\n")
-#            if x != y and rev == inner_key2 and inner_key2 not in seen: 
-#                
-##                print(f"iter+cond {y}")
-##                print(f"outer/key1: {key1}")
-##                print(f"inner/inner_key1: {inner_key1}")
-##                print("\n")
-#                dedup_dict[key2] = val2
-#                dedup_dict[inner_key2] = inner_val2
-#                combined_dict[f"*{key2}"] = inner_val2 + val2
-##                continue
-#            #    compare_dict[f"*{key1}"] = inner_val1 + val1 
-#            if key2 not in dedup_dict: 
-##                print(f"iter+cond2 key1: {key1}")
-##                print(f"iter+cond2 inner_key1: {inner_key1}")
-#                combined_dict[key2] = val2
-#            #    compare_dict[key1] = val1
-#
     dedup_dict = {}  
     combined_dict = {} 
     compare_dict = {} 
     summand_dict = {}
     dropxs = []
     dropys = []
-    seen = set() 
+    seen1 = set() 
     non_matches = set()
     for x, (key1, val1) in enumerate(torsion_counts.items()):
         fwd = key1
-        #print(fwd)
-       # print("\n")
         rev = rev_tor_label(key1)
-       # print(rev)
-        #print(key2)
-        seen.add(key1) 
+        seen1.add(key1) 
         for y, (inner_key1, inner_val1) in enumerate(torsion_counts.items()):
-            if x != y and rev == inner_key1 and inner_key1 not in seen: 
+            if x != y and rev == inner_key1 and inner_key1 not in seen1: 
                 dedup_dict[key1] = val1
                 dedup_dict[inner_key1] = inner_val1
                 combined_dict[f"*{key1}"] = inner_val1 + val1
-#                continue
-            if key1 not in dedup_dict and inner_key1 in dedup_dict:
-                combined_dict[key1] = val1
 
-    drop_list = []
+    non_combos = {} 
+    seen = set() 
+    for k, v in dedup_dict.items():
+        seen.add(k)
 
+    for k, v in torsion_counts.items():
+        if k not in seen: 
+            non_combos[k] = v 
+
+    if dedup_dict == {}:
+        for k, v in torsion_counts.items():
+            non_combos[k] = v
+
+    combined_dict.update(non_combos) 
     torsions_result = {}
     for label, val in combined_dict.items():
         torsions_result[f"{label} {template_key}"] = val 
     if num_torsions != 0:
         torsions_result[f"Global: {template_key}"] = num_torsions
 
-    return dedup_dict, combined_dict
+    return dedup_dict, combined_dict, torsion_counts #torsion_result 
         
 #|%%--%%| <gPpYHhvciX|P3VTxeLmfm>
-mol_10 = mol_202_list[1:19]
+mol_10 = mol_202_list
 for mol in mol_10:
     smiles = Chem.MolToSmiles(mol)
-    print(smiles)
+    #print(smiles)
 """---------------------------------"""
 atoms_list = []
 motif_list = [] 
@@ -403,30 +364,61 @@ for mol in mol_10:
     motif_list.append(motif_rd)
     dihedral_list0.append(dihedral_rd[0])
     dihedral_list1.append(dihedral_rd[1])
-
+    dihedral_list2.append(dihedral_rd[2])
 """---------------------------------"""
 atoms_list
 motif_list
 
-#dihedral_list1
-dihedral_list1
 dihedral_list0
-#dihedral_list2
+dihedral_list1
+dihedral_list2
 
-#amalgam = normalize_torsions(dihedral_list1)[0]
+i = 0
+for emb_dict in dihedral_list1:
+    if emb_dict == {}:
+        i += 1
 
-#amalgam
-#normal
-#amalgam
-#list(rdchem.HybridizationType.names.keys())
-#|%%--%%| <P3VTxeLmfm|C2CdsMCP6n>
+len(dihedral_list1)
+
+normal = normalize_torsions(dihedral_list0)
+normal
+dihedral_list1
+
+#|%%--%%| <P3VTxeLmfm|vbCZw3ZGQl>
+# Check to ensure that dedupicated keys are not ending up inside the returned dictionary 
+amalgam_dict = {} 
+dihedral_list1
+amalgam_dict
+for emb_dict in dihedral_list1:
+    for key, val in emb_dict.items():
+        amalgam_dict[key] = val 
+
+all_asteriks = {} 
+all_non_asteriks = {} 
+for key, val in amalgam_dict.items(): 
+    if "*" in key: 
+        strip = key.lstrip("*").split()[0]
+        all_asteriks[strip] = val 
+    elif "*" not in key:
+        all_non_asteriks[key] = val 
+
+idys = []
+for x, (key, val) in enumerate(all_asteriks.items()):
+    for y, (inner_key, inner_val) in enumerate(all_non_asteriks.items()):
+        if key == inner_key: 
+            print(y, inner_key, inner_val) 
+            print("fuck")
+            print(key) 
+
+
+
+#|%%--%%| <vbCZw3ZGQl|C2CdsMCP6n>
 #def normalize_torsions(torsion_dicts: list):
 #    amalgam_dict = {} 
 #    filtered_dict = {} 
 #    dedup_dict = {}
 #    normalized_dict = {}
-#    seen_filtered = set() C([H])([H])=C([H])C(F)(F)C(F)(F)C(F)(F)C(F)(F)C(F)(F)F
-##    seen_unfilted = set()
+#    seen_filtered = set() #seen_unfilted = set()
 #    for torsion_dict in torsion_dicts:
 #        for key, val in torsion_dict.items():
 #            amalgam_dict[key] = val
@@ -436,6 +428,7 @@ dihedral_list0
 #    for x, (key, val) in enumerate(filtered_dict.items()):
 #        strip = key.lstrip("*").split()[0]
 #        key = strip 
+#        print(key)
 #        fwd = key
 #        rev = rev_tor_label(key)
 #        seen_filtered.add(key) 
@@ -446,5 +439,5 @@ dihedral_list0
 #                normalized_dict[f"*{key}"] = val + inner_val
 #            if key not in dedup_dict and inner_key in dedup_dict:
 #                normalized_dict[key] = val
-#        
-#    return amalgam_dict, filtered_dict
+#       
+#    return normalized_dict 
