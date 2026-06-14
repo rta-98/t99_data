@@ -405,39 +405,35 @@ for key, val in amalgam_dict.items():
 idys = []
 for x, (key, val) in enumerate(all_asteriks.items()):
     for y, (inner_key, inner_val) in enumerate(all_non_asteriks.items()):
-        if key == inner_key: 
-            print(y, inner_key, inner_val) 
-            print("fuck")
-            print(key) 
+        if key == inner_key:
+            
 
-
-
-#|%%--%%| <vbCZw3ZGQl|C2CdsMCP6n>
-#def normalize_torsions(torsion_dicts: list):
-#    amalgam_dict = {} 
-#    filtered_dict = {} 
-#    dedup_dict = {}
-#    normalized_dict = {}
-#    seen_filtered = set() #seen_unfilted = set()
-#    for torsion_dict in torsion_dicts:
-#        for key, val in torsion_dict.items():
-#            amalgam_dict[key] = val
-#    for key, val in amalgam_dict.items():
-#        if "*" in key:
-#            filtered_dict[key] = val 
-#    for x, (key, val) in enumerate(filtered_dict.items()):
-#        strip = key.lstrip("*").split()[0]
-#        key = strip 
-#        print(key)
-#        fwd = key
-#        rev = rev_tor_label(key)
-#        seen_filtered.add(key) 
-#        for y, (inner_key, inner_val) in enumerate(filtered_dict.items()):
-#            if x != y and rev == inner_key and inner_key not in seen_filtered: 
-#                dedup_dict[key] = val
-#                dedup_dict[inner_key] = inner_val
-#                normalized_dict[f"*{key}"] = val + inner_val
-#            if key not in dedup_dict and inner_key in dedup_dict:
-#                normalized_dict[key] = val
-#       
-#    return normalized_dict 
+j
+def normalize_torsions(torsion_dicts: list):
+   amalgam_dict = {} 
+   filtered_dict = {} 
+   dedup_dict = {}
+   normalized_dict = {}
+   seen_filtered = set() #seen_unfilted = set()
+   for torsion_dict in torsion_dicts:
+       for key, val in torsion_dict.items():
+           amalgam_dict[key] = val
+   for key, val in amalgam_dict.items():
+       if "*" in key:
+           filtered_dict[key] = val 
+   for x, (key, val) in enumerate(filtered_dict.items()):
+       strip = key.lstrip("*").split()[0]
+       key = strip 
+       print(key)
+       fwd = key
+       rev = rev_tor_label(key)
+       seen_filtered.add(key) 
+       for y, (inner_key, inner_val) in enumerate(filtered_dict.items()):
+           if x != y and rev == inner_key and inner_key not in seen_filtered: 
+               dedup_dict[key] = val
+               dedup_dict[inner_key] = inner_val
+               normalized_dict[f"*{key}"] = val + inner_val
+           if key not in dedup_dict and inner_key in dedup_dict:
+               normalized_dict[key] = val
+      
+   return normalized_dict 
