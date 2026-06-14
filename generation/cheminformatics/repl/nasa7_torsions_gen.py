@@ -219,7 +219,7 @@ for row in custom_202_df.columns:
 rev_check = []
 for r1 in amalgam_list:
     for r2 in reverse_list:
-        if r1 == r2: u
+        if r1 == r2: 
             rev_check.append(r2)
 
 # No Biggie!! IF rev is simply the identical torsions i.e., Y-X-X-Y  
