@@ -164,69 +164,13 @@ def normal_check(input_df: pd.DataFrame):
 
     return rev_check 
 
-#|%%--%%| <a0RkJocbnJ|nFRoV1sbna>
-bpdb_inst = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True)
-ms_inst = MoleculeSorter(bpdb_inst)
-bpdb_inst = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True)
-ms_inst = MoleculeSorter(bpdb_inst)
-# Order: 1) mol_sorted or yes_sn 2) forbidden or no_sn 3) no_rot or no_rot
-torsions_202_dict_no_sn = ms_inst.analyze_all()[0]
-torsions_202_dict_yes_sn = ms_inst.analyze_all()[1]
-torsions_202_dict_no_rot = ms_inst.analyze_all()[2]
-torsions_202_dict_custom = ms_inst.analyze_all()[3]
-
-len(torsions_202_dict_no_rot)
-len(torsions_202_dict_custom)
-
-torsions_202_df_no_rot = pd.DataFrame(torsions_202_dict_no_rot)
-torsions_202_df_yes_sn = pd.DataFrame(torsions_202_dict_yes_sn)
-torsions_202_df_no_sn = pd.DataFrame(torsions_202_dict_no_sn)
-torsions_202_df_custom = pd.DataFrame(torsions_202_dict_custom)
-
-no_rot_202_T = torsions_202_df_no_rot.T
-yes_sn_202_T = torsions_202_df_yes_sn.T
-no_sn_202_T = torsions_202_df_no_sn.T
-custom_202_T = torsions_202_df_custom.T
-
-no_sn_202_T_df = pd.DataFrame(no_sn_202_T)
-yes_sn_202_T_df = pd.DataFrame(yes_sn_202_T)
-no_rot_202_T_df = pd.DataFrame(no_rot_202_T)
-custom_202_T_df = pd.DataFrame(custom_202_T)
-
-merged_no_sn_df = merger(no_sn_202_T_df, name_nasa7_202_df)
-no_sn_df = merged_no_sn_df.fillna(0) # 126 rows 
-
-merged_yes_sn_df = merger(yes_sn_202_T_df, name_nasa7_202_df)
-yes_sn_df = merged_yes_sn_df.fillna(0) # 20 rows 
-
-merged_no_rot_df = merger(no_rot_202_T_df, name_nasa7_202_df)
-no_rot_df = merged_no_rot_df.fillna(0) # 55 rows 
-
-merged_custom_df = merger(custom_202_T_df, name_nasa7_202_df)
-custom_202_df = merged_custom_df.fillna(0) 
-custom_202_df_dedup = custom_202_df.drop_duplicates(subset=['Molecule'])
-
-len(custom_202_df.columns)
-custom_202_df.columns
-csv_generator(no_sn_df, "no_sn_202")
-csv_generator(yes_sn_df, "yes_sn_202")
-csv_generator(no_rot_df, "no_rot_202")
-csv_generator(custom_202_df_dedup, "custom_202_df")
-
-filtered_normalized_145_df = drop_df_rows(input_df=custom_202_df_dedup, col_name="Global: Torsional Axes")
-csv_generator(filtered_normalized_145_df, "filtered_normalized_145_all")
-
-#|%%--%%| <nFRoV1sbna|9DkIEAdTIa>
-"""
-    "df" + numeric suffix 1-4; descriptions below:
+#|%%--%%| <a0RkJocbnJ|9DkIEAdTIa>
+""" "df" + numeric suffix 1-4; descriptions below:
         1. torsions normalized; xhyb-xhyb-xhyb-xhyb
         2. torsions unnormalized; xhyb-xhyb-xhyb-xhyb
         3. torsions normalized; x-xhyb-xhyb-x 
         4. torsions unnormalized; x-xhyb-xhyb-x 
-
-    "drop" meaning 0 torsion mols. removed 
-
-"""
+    "drop" meaning 0 torsion mols. removed """
 #1 ---------------------------------
 bpdb_inst1 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="all", many_one="one")
 ms_inst1 = MoleculeSorter(bpdb_inst1)

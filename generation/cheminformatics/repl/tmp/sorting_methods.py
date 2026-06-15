@@ -178,248 +178,132 @@ def count_atoms(mol):
     return dict(cnt)  
 
 def count_motif(mol): 
-    # creates a map
-    bo_map = {
-        Chem.BondType.SINGLE: "bo 1.0", 
-        Chem.BondType.DOUBLE: "bo 2.0", 
-        Chem.BondType.TRIPLE: "bo 3.0",
-        Chem.BondType.AROMATIC: "bo 1.5",
+    motif_result = {} 
+    bond_dict = {} 
+    dash_bond_map = {
+        Chem.BondType.SINGLE: "-", 
+        Chem.BondType.DOUBLE: "=", 
+        Chem.BondType.TRIPLE: "≡",
     }
-    # creates first dict. (the inner-most, ultimately set to nest inside result)
-    bonds_in_mol = {
-        "bo 1.0": [],
-        "bo 2.0": [],
-        "bo 3.0" : [],
-        "bo 1.5": [],
-        "Unk": [],
-    } 
 
     mol_h = Chem.AddHs(mol) # mol but with added H's
-    for mol_bond in mol_h.GetBonds():
+    for mol_bond in mol_h.GetBonds(): 
+        bond_type = mol_bond.GetBondType()
+        bond_type_str = f"Global: " + f"{bond_type}".capitalize() 
+        dash_bond = dash_bond_map.get(mol_bond.GetBondType(), "Unk")
 
-        # GetBondType() also produces: GetBeginAtom() and GetEndAtom() as options
-        bond_type_mapped = bo_map.get(mol_bond.GetBondType(), "Unk") 
-
-        # defining two points
-        atom1 = mol_bond.GetBeginAtom()
+        atom1 = mol_bond.GetBeginAtom() 
         atom2 = mol_bond.GetEndAtom() 
-        
-        # convert two points to atomic numbers (Z)
-        z1 = atom1.GetAtomicNum() 
-        z2 = atom2.GetAtomicNum() 
 
-        # convert atomic numbers (Z) to atomic symbols (E) 
-        e1 = Chem.GetPeriodicTable().GetElementSymbol(z1) if z1 > 0 else atom1.GetSmarts() 
-        e2 = Chem.GetPeriodicTable().GetElementSymbol(z2) if z2 > 0 else atom2.GetSmarts() 
+        z1 = atom1.GetAtomicNum()
+        z2 = atom1.GetAtomicNum()
         
-        # obtain hybridization of atoms in motif 
-        hybrid1 = atom1.GetHybridization()
-        hybrid2 = atom2.GetHybridization() 
-        hyb_atom_dict = {e1: hybrid1, e2: hybrid2}
-        a, b = sorted((e1, e2))
-        hyb1_str = f"{hyb_atom_dict[a]}".lower()
-        hyb2_str = f"{hyb_atom_dict[b]}".lower()
+        e1 = Chem.GetPeriodicTable().GetElementSymbol(z1) if z1 > 0 else atom1.GetSmarts()
+        e2 = Chem.GetPeriodicTable().GetElementSymbol(z2) if z2 > 0 else atom1.GetSmarts()
 
-        # append atomic symbols (E) to the bonds_in_mol dict.
-        bonds_in_mol[bond_type_mapped].append({
-            "Bond Pair ID": f"{a}{hyb1_str}-{b}{hyb2_str}"
-        }) 
+        hyb1 = atom1.GetHybridization() 
+        hyb2 = atom2.GetHybridization() 
+        
+        hyb1_str = f"{hyb1}".lower()
+        hyb2_str = f"{hyb2}".lower()
+
+        bond = f"{e1}{hyb1_str}{dash_bond}{e2}{hyb2_str}"
+        bond_dict[bond] = bond_dict.get(bond, 0) + 1
+        bond_dict[bond_type_str] = bond_dict.get(bond_type_str, 0) + 1
+        
+    return bond_dict
+
+def canonical_torsion(self, tor_str: str):
+    sep = "-"
+    fwd = sep.join(tor_str.split(sep))
+    rev = sep.join(tor_str.split(sep)[::-1])
+    return min(fwd, rev) 
+
+def count_dihedral(self, mol, template_key: str, template_val: str):
+    # Template for rotatable bonds
+    ROT_BONDS_SMARTS = Chem.MolFromSmarts(template_val)
+    rot_matches = mol.GetSubstructMatches(ROT_BONDS_SMARTS)
+    confs = mol.GetConformer() 
+    traversed = set() 
+    unique_rot_matches = []
+    for j, k in rot_matches:  
+        bond = (min(j, k), max(j, k)) # e.g., min(7, 3), max(7, 3) -> (3, 7) 
+        if bond not in traversed:
+            traversed.add(bond) # object of type set naturally removes duplicates
+            unique_rot_matches.append(bond) # now append to list  
+
+    torsions = []
+    bonds = []
+    torsion_counts = {} 
+    normal_dict = {} 
+    num_torsions = 0
+    for j, k in unique_rot_matches:
+        atom_j = mol.GetAtomWithIdx(j)
+        atom_k = mol.GetAtomWithIdx(k)
+        hybrid_j = atom_j.GetHybridization()
+        hybrid_k = atom_k.GetHybridization()
+        hybrid_j_str = f"{hybrid_j}".lower()
+        hybrid_k_str = f"{hybrid_k}".lower()
+
+        # Neighbor atoms not including k (left side)
+        i = [n.GetIdx() for n in atom_j.GetNeighbors() if n.GetIdx() != k and n.GetAtomicNum()]
+        # Neighbor atoms not including j (right side)
+        l = [n.GetIdx() for n in atom_k.GetNeighbors() if n.GetIdx() != j and n.GetAtomicNum()]
+        num_tbond = 0 # counter for num. torsions around central bond
+
+        for m, n in product(i, l): # All possible combinations via cartesian product 
+            if m != n: # skips identical indices 
+                num_tbond += 1 
+        for m, n in product(i, l):
+            if m == n:
+                continue
+
+            num_torsions += 1
+            atoms = [mol.GetAtomWithIdx(idx) for idx in (m, j, k, n)]
+            atom_symbols = [a.GetSymbol() for a in atoms]
+            atom_symbols_str = '-'.join(atom_symbols)
+            hybrids = [atom.GetHybridization() for atom in atoms]
+            hybrids_str = [f"{hybrid}".lower() for hybrid in hybrids]
+
+            # hybridization options 
+            if self.hybs == "all":
+                torsion_string = f"{atom_symbols[0]}{hybrids_str[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}{hybrids_str[3]}"
+            elif self.hybs == "central":
+                torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}"
+            elif self.hybs == "none":
+                torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}-{atom_symbols[2]}-{atom_symbols[3]}"
+
+            # normalization options
+            if self.canon_tor is True:
+                canon_tor = self.canonical_torsion(torsion_string) 
+                torsions = canon_tor
+            elif self.canon_tor is False:
+                torsions = torsion_string 
+
+            torsion_counts[torsion_string] = torsion_counts.get(torsion_string, 0) + 1 
     
-    # The nested dictionary result is initialized
-    motif_result = {} 
+    torsions_result = {}
+    for label, val in torsion_counts.items():
+        torsions_result[f"{label} {template_key}"] = val 
+    if num_torsions != 0:
+        torsions_result[f"Global: {template_key}"] = num_torsions
 
-    # Loop over the key (bond) and the value (bond_idx) in bonds_in_mol dict.  
-    # first for loop simply takes the list associated with one of the 4 bondization 
-    # values, and iterates over the total number of entries, i.e., 
-    # for a given sp3 you get 
-    # [Bond Pair ID: C-C, Bond Pair ID: C-C, Bond Pair ID: C-N], which has length 3.
-
-    for bond_key, bond_list in bonds_in_mol.items():
-        if bond_list:
-            motif_result[f"Global: {bond_key}"] = len(bond_list) 
-            pair_list = []
-            pair_count_dict = {}
-            for bonds_in_mol_dict in bond_list: 
-                name = bonds_in_mol_dict["Bond Pair ID"] 
-                pair_list.append(name)
-                if name in pair_list:
-                    pair_count_dict[name] = pair_count_dict.get(name, 0) + 1 # alternative to dict[key] += 1 
-                else:
-                    pair_count_dict[name] = 0
-            for pair_name, pair_count in pair_count_dict.items():
-                motif_result[f"{bond_key} {pair_name}"] = pair_count
-
-    return motif_result 
-
-    def canonical_torsion(self, tor_str: str):
-        sep = "-"
-        fwd = sep.join(tor_str.split(sep))
-        rev = sep.join(tor_str.split(sep)[::-1])
-        return min(fwd, rev) 
-
-    def count_dihedral(self, mol, template_key: str, template_val: str):
-        # Template for rotatable bonds
-        ROT_BONDS_SMARTS = Chem.MolFromSmarts(template_val)
-        rot_matches = mol.GetSubstructMatches(ROT_BONDS_SMARTS)
-        confs = mol.GetConformer() 
-        traversed = set() 
-        unique_rot_matches = []
-        for j, k in rot_matches:  
-            bond = (min(j, k), max(j, k)) # e.g., min(7, 3), max(7, 3) -> (3, 7) 
-            if bond not in traversed:
-                traversed.add(bond) # object of type set naturally removes duplicates
-                unique_rot_matches.append(bond) # now append to list  
-
-        torsions = []
-        bonds = []
-        torsion_counts = {} 
-        normal_dict = {} 
-        num_torsions = 0
-        for j, k in unique_rot_matches:
-            atom_j = mol.GetAtomWithIdx(j)
-            atom_k = mol.GetAtomWithIdx(k)
-            hybrid_j = atom_j.GetHybridization()
-            hybrid_k = atom_k.GetHybridization()
-            hybrid_j_str = f"{hybrid_j}".lower()
-            hybrid_k_str = f"{hybrid_k}".lower()
-
-            # Neighbor atoms not including k (left side)
-            i = [n.GetIdx() for n in atom_j.GetNeighbors() if n.GetIdx() != k and n.GetAtomicNum()]
-            # Neighbor atoms not including j (right side)
-            l = [n.GetIdx() for n in atom_k.GetNeighbors() if n.GetIdx() != j and n.GetAtomicNum()]
-
-            num_tbond = 0 # counter for num. torsions around central bond
-            for m, n in product(i, l): # All possible combinations via cartesian product 
-                if m != n: # skips identical indices 
-                    num_tbond += 1 
-            for m, n in product(i, l):
-                if m == n:
-                    continue
-
-                num_torsions += 1
-                atoms = [mol.GetAtomWithIdx(idx) for idx in (m, j, k, n)]
-                atom_symbols = [a.GetSymbol() for a in atoms]
-                atom_symbols_str = '-'.join(atom_symbols)
-                hybrids = [atom.GetHybridization() for atom in atoms]
-                hybrids_str = [f"{hybrid}".lower() for hybrid in hybrids]
-
-                # hybridization options 
-                if self.hybs == "all":
-                    torsion_string = f"{atom_symbols[0]}{hybrids_str[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}{hybrids_str[3]}"
-                elif self.hybs == "central":
-                    torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}"
-                elif self.hybs == "none":
-                    torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}-{atom_symbols[2]}-{atom_symbols[3]}"
-
-                # normalization options
-                if self.canon_tor is True:
-                    canon_tor = self.canonical_torsion(torsion_string) 
-                    torsions = canon_tor
-                elif self.canon_tor is False:
-                    torsions = torsion_string 
-
-                torsion_counts[torsion_string] = torsion_counts.get(torsion_string, 0) + 1 
-        
-        torsions_result = {}
-        for label, val in torsion_counts.items():
-            torsions_result[f"{label} {template_key}"] = val 
-        if num_torsions != 0:
-            torsions_result[f"Global: {template_key}"] = num_torsions
-
-        return torsions_result 
+    return torsions_result 
         
 #|%%--%%| <gPpYHhvciX|P3VTxeLmfm>
-mol_10 = mol_202_list
+mol_10 = mol_202_list[0:10]
 for mol in mol_10:
     smiles = Chem.MolToSmiles(mol)
     #print(smiles)
 """---------------------------------"""
 atoms_list = []
 motif_list = [] 
-
-dihedral_list0 = []
-dihedral_list1 = []
-dihedral_list2 = []
 """---------------------------------"""
 for mol in mol_10:
     atom_rd = count_atoms(mol)
     motif_rd = count_motif(mol)
-    for key, val in TEMPLATES.items():
-        dihedral_rd = count_dihedral(mol, template_key=key, template_val=val)
 
     atoms_list.append(atom_rd)
     motif_list.append(motif_rd)
-    dihedral_list0.append(dihedral_rd[0])
-    dihedral_list1.append(dihedral_rd[1])
-    dihedral_list2.append(dihedral_rd[2])
 """---------------------------------"""
-atoms_list
 motif_list
-
-dihedral_list0
-dihedral_list1
-dihedral_list2
-
-i = 0
-for emb_dict in dihedral_list1:
-    if emb_dict == {}:
-        i += 1
-
-len(dihedral_list1)
-
-normal = normalize_torsions(dihedral_list0)
-normal
-dihedral_list1
-
-#|%%--%%| <P3VTxeLmfm|4c76NFxRUL>
-# Check to ensure that dedupicated keys are not ending up inside the returned dictionary 
-amalgam_dict = {} 
-dihedral_list1
-amalgam_dict
-for emb_dict in dihedral_list1:
-    for key, val in emb_dict.items():
-        amalgam_dict[key] = val 
-
-all_asteriks = {} 
-all_non_asteriks = {} 
-for key, val in amalgam_dict.items(): 
-    if "*" in key: 
-        strip = key.lstrip("*").split()[0]
-        all_asteriks[strip] = val 
-    elif "*" not in key:
-        all_non_asteriks[key] = val 
-
-idys = []
-#for x, (key, val) in enumerate(all_asteriks.items()):
-#    for y, (inner_key, inner_val) in enumerate(all_non_asteriks.items()):
-#        if key == inner_key:
-            
-#|%%--%%| <4c76NFxRUL|vbCZw3ZGQl>
-
-#def normalize_torsions(torsion_dicts: list):
-#   amalgam_dict = {} 
-#   filtered_dict = {} 
-#   dedup_dict = {}
-#   normalized_dict = {}
-#   seen_filtered = set() #seen_unfilted = set()
-#   for torsion_dict in torsion_dicts:
-#       for key, val in torsion_dict.items():
-#           amalgam_dict[key] = val
-#   for key, val in amalgam_dict.items():
-#       if "*" in key:
-#           filtered_dict[key] = val 
-#   for x, (key, val) in enumerate(filtered_dict.items()):
-#       strip = key.lstrip("*").split()[0]
-#       key = strip 
-#       print(key)
-#       fwd = key
-#       rev = rev_tor_label(key)
-#       seen_filtered.add(key) 
-#       for y, (inner_key, inner_val) in enumerate(filtered_dict.items()):
-#           if x != y and rev == inner_key and inner_key not in seen_filtered: 
-#               dedup_dict[key] = val
-#               dedup_dict[inner_key] = inner_val
-#               normalized_dict[f"*{key}"] = val + inner_val
-#           if key not in dedup_dict and inner_key in dedup_dict:
-#               normalized_dict[key] = val
-#      return normalized_dict 
