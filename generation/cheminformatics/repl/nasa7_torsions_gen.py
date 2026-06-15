@@ -145,10 +145,30 @@ def drop_df_rows(input_df: pd.DataFrame, col_name: str) -> pd.DataFrame:
     dropped_df = df.drop(index=index_list)
     return dropped_df 
 
+# function to check if dicts have been normalized succesfully 
+def normal_check(input_df: pd.DataFrame): 
+    rev_check = []
+    for row in input_df.columns:
+        sep = "-"
+        if "Torsional Axes" in row and "Global" not in row:
+            strip = row.split()[0]
+            rev = sep.join(strip.split(sep)[::-1])
+            amalgam_list.append(strip)
+            reverse_list.append(rev)
+
+    # Check to ensure that torsions have been normalized succesfully!
+    for r1 in amalgam_list:
+        for r2 in reverse_list:
+            if r1 == r2: 
+                rev_check.append(r2)
+
+    return rev_check 
+
 #|%%--%%| <a0RkJocbnJ|nFRoV1sbna>
 bpdb_inst = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True)
 ms_inst = MoleculeSorter(bpdb_inst)
-
+bpdb_inst = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True)
+ms_inst = MoleculeSorter(bpdb_inst)
 # Order: 1) mol_sorted or yes_sn 2) forbidden or no_sn 3) no_rot or no_rot
 torsions_202_dict_no_sn = ms_inst.analyze_all()[0]
 torsions_202_dict_yes_sn = ms_inst.analyze_all()[1]
@@ -198,30 +218,60 @@ csv_generator(filtered_normalized_145_df, "filtered_normalized_145_all")
 
 #|%%--%%| <nFRoV1sbna|9DkIEAdTIa>
 """
-    1. torsions normalized; xhyb-xhyb-xhyb-xhyb
-    2. torsions unnormalized; xhyb-xhyb-xhyb-xhyb
-    3. torsions normalized; x-xhyb-xhyb-x 
-    4. torsions unnormalized; x-xhyb-xhyb-x 
+    "df" + numeric suffix 1-4; descriptions below:
+        1. torsions normalized; xhyb-xhyb-xhyb-xhyb
+        2. torsions unnormalized; xhyb-xhyb-xhyb-xhyb
+        3. torsions normalized; x-xhyb-xhyb-x 
+        4. torsions unnormalized; x-xhyb-xhyb-x 
+
+    "drop" meaning 0 torsion mols. removed 
+
 """
+#1 ---------------------------------
+bpdb_inst1 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="all", many_one="one")
+ms_inst1 = MoleculeSorter(bpdb_inst1)
+dict1 = ms_inst1.analyze_all()
+df1 = pd.DataFrame(dict1).T
+df1_merged = merger(df1, name_nasa7_202_df).fillna(0)
+len(df1_merged.columns) 
+df1_dedup = df1_merged.drop_duplicates(subset=["Molecule"])
+df1_dedup_drop = drop_df_rows(input_df=df1_dedup, col_name="Global: Torsional Axes")
+csv_generator(df1_dedup, "df1")
+csv_generator(df1_dedup_drop, "df1_drop")
 
-#|%%--%%| <9DkIEAdTIa|Kd2r7r9bev>
-amalgam_list = []
-reverse_list = []
-for row in custom_202_df.columns:
-    sep = "-"
-    if "Torsional Axes" in row and "Global" not in row:
-        strip = row.split()[0]
-        rev = sep.join(strip.split(sep)[::-1])
-        amalgam_list.append(strip)
-        reverse_list.append(rev)
+#2 ---------------------------------
+bpdb_inst2 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=False, hybs="all", many_one="one")
+ms_inst2 = MoleculeSorter(bpdb_inst2)
+dict2 = ms_inst2.analyze_all()
+df2 = pd.DataFrame(dict2).T
+df2_merged = merger(df2, name_nasa7_202_df).fillna(0)
+len(df2_merged.columns)
+df2_dedup = df2_merged.drop_duplicates(subset=["Molecule"])
+df2_dedup_drop = drop_df_rows(input_df=df2_dedup, col_name="Global: Torsional Axes")
+csv_generator(df2_dedup, "df2")
+csv_generator(df2_dedup_drop, "df2_drop")
 
-# Check to ensure that torsions have been normalized succesfully!
-rev_check = []
-for r1 in amalgam_list:
-    for r2 in reverse_list:
-        if r1 == r2: u
-            rev_check.append(r2)
+#3 ---------------------------------
+bpdb_inst3 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="central", many_one="one")
+ms_inst3 = MoleculeSorter(bpdb_inst3)
+dict3 = ms_inst3.analyze_all()
+df3 = pd.DataFrame(dict3).T
+df3_merged = merger(df3, name_nasa7_202_df).fillna(0)
+len(df3_merged.columns)
+df3_dedup = df3_merged.drop_duplicates(subset=["Molecule"])
+df3_dedup_drop = drop_df_rows(input_df=df3_dedup, col_name="Global: Torsional Axes")
+csv_generator(df3_dedup, "df3")
+csv_generator(df3_dedup_drop, "df3_drop")
 
-# No Biggie!! IF rev is simply the identical torsions i.e., Y-X-X-Y  
-rev_check
+#4 ---------------------------------
+bpdb_inst4 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=False, hybs="central", many_one="one")
+ms_inst4 = MoleculeSorter(bpdb_inst4)
+dict4 = ms_inst4.analyze_all()
+df4 = pd.DataFrame(dict4).T
+df4_merged = merger(df4, name_nasa7_202_df).fillna(0)
+len(df4_merged.columns)
+df4_dedup = df4_merged.drop_duplicates(subset=["Molecule"])
+df4_dedup_drop = drop_df_rows(input_df=df4_dedup, col_name="Global: Torsional Axes")
+csv_generator(df4_dedup, "df4")
+csv_generator(df4_dedup_drop, "df4_drop")
 

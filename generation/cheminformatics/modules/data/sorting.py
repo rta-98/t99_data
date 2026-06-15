@@ -10,6 +10,7 @@ from pathlib import Path
 from itertools import zip_longest, product 
 from collections import Counter 
 from collections.abc import Collection 
+from typing import Literal 
 
 FORBIDDEN = frozenset({ "S", "N" }) # molecules to exclude  
 TEMPLATES = {
@@ -18,20 +19,35 @@ TEMPLATES = {
 
 TEMPLATES = {
         "Torsional Axes": '[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]',
-        }
-""" INPUT: file name, mol objects, and SMILES as separate, equally sized lists
-    OUTPUT: flat dictionary of molecular info.
-"""
+    }
+
 class BytesPDB:
+    """ INPUT: file name, mol objects, and SMILES as separate, equally sized lists. 
+        FLAGS: 
+            many_one: "many" or four different dictionaries sorted by 
+                        conditions specified in analyze_all()
+                      "one" or a single dictionary that isn't sorted. 
+            hybs: "all" for all hybridization specified for atoms in torsion string. 
+                  "central" for hybridization specified only for central atoms in torsion string. 
+                  "none" for no hybridization specified for atoms in a torsion string. 
+                        
+            canon_tor: "True" for the normalization of torsion strings. 
+                       "False" for the unnormalization of torsion strings.
+        OUTPUT: flat dictionary of molecular info. """
     def __init__(self, 
                  name: list, # Usually derived from Path(<file>).stem and contained in "Molecules"  
                  smiles: list, # Accepts non-canonical SMILES
                  mol: list,
+                 many_one: str,
+                 hybs: str, 
                  canon_tor: Optional[bool] = True): # Mol objects stored in RAM  
+                
         # --------------------------------- 
         self.name = name
         self.smiles = smiles
         self.mol = mol
+        self.many_one = many_one
+        self.hybs = hybs
         self.canon_tor = canon_tor
         # ---------------------------------
         self.smiles_names_mols_dict = {
@@ -51,6 +67,8 @@ class MoleculeSorter:
     def __init__(self, molecule_sorter: BytesPDB): 
         self.molecule_sorter: BytesPDB = molecule_sorter 
         self.imported_mol_data: dict = molecule_sorter.bookeeper() 
+        self.many_one: str = molecule_sorter.many_one
+        self.hybs: str = molecule_sorter.hybs
         self.canon_tor: bool = molecule_sorter.canon_tor 
         self.name = self.imported_mol_data["Name"]
         self.smiles = self.imported_mol_data["SMILES"] 
@@ -75,8 +93,12 @@ class MoleculeSorter:
                 self.mol_sorted_dict[name] = self.analyzer(name, smiles, mol) 
             elif self.has_atom(mol):  
                 self.forbidden_dict[name] = self.analyzer(name, smiles, mol)
+        if self.many_one == "many":
+            result = (self.mol_sorted_dict, self.forbidden_dict, self.non_rot_dict, self.custom_dict)
+        if self.many_one == "one":
+            result = self.custom_dict
 
-        return (self.mol_sorted_dict, self.forbidden_dict, self.non_rot_dict, self.custom_dict) 
+        return result
     
     def has_atom(
             self,
@@ -168,7 +190,6 @@ class MoleculeSorter:
             "bo 1.5": [],
             "Unk": [],
         } 
-
         mol_h = Chem.AddHs(mol) # mol but with added H's
         for mol_bond in mol_h.GetBonds():
 
@@ -230,11 +251,7 @@ class MoleculeSorter:
         sep = "-"
         fwd = sep.join(tor_str.split(sep))
         rev = sep.join(tor_str.split(sep)[::-1])
-        if self.canon_tor is True:
-            result = min(fwd, rev)
-        elif self.canon_tor is False:
-            result = tor_str
-        return result
+        return min(fwd, rev) 
 
     def count_dihedral(self, mol, template_key: str, template_val: str):
         # Template for rotatable bonds
@@ -281,47 +298,28 @@ class MoleculeSorter:
                 atom_symbols_str = '-'.join(atom_symbols)
                 hybrids = [atom.GetHybridization() for atom in atoms]
                 hybrids_str = [f"{hybrid}".lower() for hybrid in hybrids]
-                torsion_string = f"{atom_symbols[0]}{hybrids_str[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}{hybrids_str[3]}"
-                canon_tor = self.canonical_torsion(torsion_string) 
-                torsion_counts[canon_tor] = torsion_counts.get(canon_tor, 0) + 1 
-                #normal_dict[atom_symbols_str] = normal_dict.get(atom_symbols_str, 0) + 1 
+
+                # hybridization options 
+                if self.hybs == "all":
+                    torsion_string = f"{atom_symbols[0]}{hybrids_str[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}{hybrids_str[3]}"
+                elif self.hybs == "central":
+                    torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}"
+                elif self.hybs == "none":
+                    torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}-{atom_symbols[2]}-{atom_symbols[3]}"
+
+                # normalization options
+                if self.canon_tor is True:
+                    canon_tor = self.canonical_torsion(torsion_string) 
+                    torsions = canon_tor
+                elif self.canon_tor is False:
+                    torsions = torsion_string 
+
+                torsion_counts[torsions] = torsion_counts.get(torsions, 0) + 1 
         
-#        dedup_dict = {}  
-#        combined_dict = {} 
-#        compare_dict = {} 
-#        summand_dict = {}
-#        dropxs = []
-#        dropys = []
-#        seen = set() 
-#        non_matches = set()
-#        for x, (key1, val1) in enumerate(torsion_counts.items()):
-#            fwd = key1
-#            rev = rev_tor_label(key1)
-#            seen.add(key1) 
-#            for y, (inner_key1, inner_val1) in enumerate(torsion_counts.items()):
-#                if x != y and rev == inner_key1 and inner_key1 not in seen: 
-#                    dedup_dict[key1] = val1
-#                    dedup_dict[inner_key1] = inner_val1
-#                    combined_dict[f"*{key1}"] = inner_val1 + val1
-#
-#        non_combos = {} 
-#        seen = set() 
-#        for k, v in dedup_dict.items():
-#            seen.add(k)
-#
-#        for k, v in torsion_counts.items():
-#            if k not in seen: 
-#                non_combos[k] = v 
-#
-#        if dedup_dict == {}:
-#            for k, v in torsion_counts.items():
-#                non_combos[k] = v
-#
-#        combined_dict.update(non_combos) 
         torsions_result = {}
         for label, val in torsion_counts.items():
             torsions_result[f"{label} {template_key}"] = val 
         if num_torsions != 0:
             torsions_result[f"Global: {template_key}"] = num_torsions
 
-        return torsions_result #dedup_dict, non_combos, torsion_counts
+        return torsions_result 
