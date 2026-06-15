@@ -13,6 +13,7 @@ from collections.abc import Collection
 from typing import Literal 
 
 FORBIDDEN = frozenset({ "S", "N" }) # molecules to exclude  
+
 TEMPLATES = {
         "Torsional Axes": '[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]',
         }

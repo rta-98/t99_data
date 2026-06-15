@@ -136,7 +136,6 @@ class SDFtoMol:
             self.sdf_mol_dict['mol'].append(mol_obj) 
         return self.sdf_mol_dict 
 
-
 class AppendToCSV: 
     def __init__(self, 
                  csv_path: Optional[Path] = None,
