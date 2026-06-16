@@ -16,6 +16,7 @@ from collections.abc import Collection
 import inspect
 import pandas as pd
 import os
+import re
 from pathlib import Path 
 from rdkit import Chem 
 from rdkit.Chem import MolFromSmiles 
@@ -180,7 +181,6 @@ def count_atoms(mol):
 def count_motif(mol): 
     motif_result = {} 
     bond_dict = {} 
-
     dash_bond_map = {
         Chem.BondType.SINGLE: "-", 
         Chem.BondType.DOUBLE: "=", 
@@ -188,7 +188,9 @@ def count_motif(mol):
     }
 
     mol_h = Chem.AddHs(mol) # mol but with added H's
+
     for mol_bond in mol_h.GetBonds(): 
+
         bond_type = mol_bond.GetBondType()
         bond_type_str = f"Global: " + f"{bond_type}".capitalize() 
         dash_bond = dash_bond_map.get(mol_bond.GetBondType(), "Unk")
@@ -197,27 +199,36 @@ def count_motif(mol):
         atom2 = mol_bond.GetEndAtom() 
 
         z1 = atom1.GetAtomicNum()
-        z2 = atom1.GetAtomicNum()
+        z2 = atom2.GetAtomicNum()
         
         e1 = Chem.GetPeriodicTable().GetElementSymbol(z1) if z1 > 0 else atom1.GetSmarts()
-        e2 = Chem.GetPeriodicTable().GetElementSymbol(z2) if z2 > 0 else atom1.GetSmarts()
+        e2 = Chem.GetPeriodicTable().GetElementSymbol(z2) if z2 > 0 else atom2.GetSmarts()
 
         hyb1 = atom1.GetHybridization() 
         hyb2 = atom2.GetHybridization() 
         
-        hyb1_str = f"{hyb1}".lower()
-        hyb2_str = f"{hyb2}".lower()
+#        hyb_atom_dict = {e1: hyb1, e2: hyb2}
+#        a, b = sorted((e1, e2))
 
-        bond = f"{e1}{hyb1_str}{dash_bond}{e2}{hyb2_str}"
+#        hyb1_str = f"{hyb_atom_dict[a]}".lower()
+#        hyb2_str = f"{hyb_atom_dict[b]}".lower()
+
+        hyb1_pair = f"{e1}{hyb1}".capitalize()
+        hyb2_pair = f"{e2}{hyb2}".capitalize()
+
+#        left, right = sorted([hyb1_pair, hyb2_pair])
+        left, right = hyb1_pair, hyb2_pair 
+
+        bond = f"{left}{dash_bond}{right}"
         bond_dict[bond] = bond_dict.get(bond, 0) + 1
         bond_dict[bond_type_str] = bond_dict.get(bond_type_str, 0) + 1
         
     return bond_dict
 
-def canonical_torsion(tor_str: str):
-    sep = "-"
-    fwd = sep.join(tor_str.split(sep))
-    rev = sep.join(tor_str.split(sep)[::-1])
+def canonical_torsion(tor_str: str) -> str:
+    parts = re.findall(r"[^-=]+|[-=]", tor_str)
+    fwd = "".join(parts)
+    rev = "".join(parts[::-1])
     return min(fwd, rev) 
 
 def count_dihedral(mol, template_key: str, template_val: str):
@@ -227,14 +238,13 @@ def count_dihedral(mol, template_key: str, template_val: str):
         Chem.BondType.DOUBLE: "=", 
         Chem.BondType.TRIPLE: "≡",
     }
-
     ROT_BONDS_SMARTS = Chem.MolFromSmarts(template_val)
     rot_matches = mol.GetSubstructMatches(ROT_BONDS_SMARTS)
     confs = mol.GetConformer() 
     traversed = set() 
     unique_rot_matches = []
-    hybs = "central"
-    canon_tor = True 
+    hybs = "all"
+    canon_tor = True
     for j, k in rot_matches:  
         bond = (min(j, k), max(j, k)) # e.g., min(7, 3), max(7, 3) -> (3, 7) 
         if bond not in traversed:
@@ -292,19 +302,15 @@ def count_dihedral(mol, template_key: str, template_val: str):
             # hybridization options 
             if hybs == "all":
                 torsion_string = f"{atom_symbols[0]}{hybrids_str[0]}{dash_bond_list[0]}{atom_symbols[1]}{hybrids_str[1]}{dash_bond_list[1]}{atom_symbols[2]}{hybrids_str[2]}{dash_bond_list[2]}{atom_symbols[3]}{hybrids_str[3]}"
-                print(torsion_string)
             elif hybs == "central":
-                torsion_string = f"{atom_symbols[0]}{dash_bond_list[0]}{atom_symbols[1]}{hybrids_str[1]}{dash_bond_list[1]}{atom_symbols[2]}{hybrids_str[2]}{dash_bond_list[2]}{atom_symbols[3]}"
+                torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}{hybrids_str[1]}{dash_bond_list[1]}{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}"
             elif hybs == "none":
                 torsion_string = f"{atom_symbols[0]}{dash_bond_list[0]}{atom_symbols[1]}{dash_bond_list[1]}{atom_symbols[2]}{dash_bond_list[2]}{atom_symbols[3]}"
 
-            # normalization options
             if canon_tor is True:
-                canon_tor = canonical_torsion(tor_str=torsion_string) 
-                torsions = canon_tor
-            elif canon_tor is False:
-                torsions = torsion_string 
-
+                torsion_string = canonical_torsion(torsion_string)
+            else:
+                torsion_string 
             torsion_counts[torsion_string] = torsion_counts.get(torsion_string, 0) + 1 
     
     torsions_result = {}
@@ -316,13 +322,14 @@ def count_dihedral(mol, template_key: str, template_val: str):
     return torsions_result 
         
 #|%%--%%| <gPpYHhvciX|P3VTxeLmfm>
-mol_10 = mol_202_list[0:2]
+mol_10 = mol_202_list[11:20]
 for mol in mol_10:
     smiles = Chem.MolToSmiles(mol)
     print(smiles)
 """---------------------------------"""
 atoms_list = []
 motif_list = [] 
+dihedral_list = []
 """---------------------------------"""
 for mol in mol_10:
     atom_rd = count_atoms(mol)
@@ -331,6 +338,8 @@ for mol in mol_10:
 
     atoms_list.append(atom_rd)
     motif_list.append(motif_rd)
+    dihedral_list.append(dihedral_rd)
 """---------------------------------"""
+atoms_list
 motif_list
-dihedral_rd
+dihedral_list
