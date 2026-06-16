@@ -15,11 +15,7 @@ from typing import Literal
 FORBIDDEN = frozenset({ "S", "N" }) # molecules to exclude  
 
 TEMPLATES = {
-        "Torsional Axes": '[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]',
-        }
-
-TEMPLATES = {
-        "Torsional Axes": '[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]',
+        "Torsional Axes": '[!$(*#*)&!D1]-,=&!@[!$(*#*)&!D1]',
     }
 
 class BytesPDB:
@@ -34,6 +30,9 @@ class BytesPDB:
                         
             canon_tor: "True" for the normalization of torsion strings. 
                        "False" for the unnormalization of torsion strings.
+
+            #dash_bo: "all" for all atoms
+                      "central" for the middle two 
         OUTPUT: flat dictionary of molecular info. """
     def __init__(self, 
                  name: list, # Usually derived from Path(<file>).stem and contained in "Molecules"  
@@ -85,7 +84,7 @@ class MoleculeSorter:
         for i, (name, smiles, mol) in enumerate(
                 zip(self.name, self.smiles, self.mol, strict=True)
         ):
-            if not self.has_rot(mol) or not self.has_atom(mol):
+            if not self.has_atom(mol):
                 self.custom_dict[name] = self.analyzer(name, smiles, mol)
             if not self.has_rot(mol):
                 self.non_rot_dict[name] = self.analyzer(name, smiles, mol) 
@@ -176,86 +175,58 @@ class MoleculeSorter:
         return dict(cnt)
 
     def count_motif(self, mol): 
-        # creates a map
-        bo_map = {
-            Chem.BondType.SINGLE: "bo 1.0", 
-            Chem.BondType.DOUBLE: "bo 2.0", 
-            Chem.BondType.TRIPLE: "bo 3.0",
-            Chem.BondType.AROMATIC: "bo 1.5",
-        }
-        # creates first dict. (the inner-most, ultimately set to nest inside result)
-        bonds_in_mol = {
-            "bo 1.0": [],
-            "bo 2.0": [],
-            "bo 3.0" : [],
-            "bo 1.5": [],
-            "Unk": [],
-        } 
-        mol_h = Chem.AddHs(mol) # mol but with added H's
-        for mol_bond in mol_h.GetBonds():
-
-            # GetBondType() also produces: GetBeginAtom() and GetEndAtom() as options
-            bond_type_mapped = bo_map.get(mol_bond.GetBondType(), "Unk") 
-
-            # defining two points
-            atom1 = mol_bond.GetBeginAtom()
-            atom2 = mol_bond.GetEndAtom() 
-            
-            # convert two points to atomic numbers (Z)
-            z1 = atom1.GetAtomicNum() 
-            z2 = atom2.GetAtomicNum() 
-
-            # convert atomic numbers (Z) to atomic symbols (E) 
-            e1 = Chem.GetPeriodicTable().GetElementSymbol(z1) if z1 > 0 else atom1.GetSmarts() 
-            e2 = Chem.GetPeriodicTable().GetElementSymbol(z2) if z2 > 0 else atom2.GetSmarts() 
-            
-            # obtain hybridization of atoms in motif 
-            hybrid1 = atom1.GetHybridization()
-            hybrid2 = atom2.GetHybridization() 
-            hyb_atom_dict = {e1: hybrid1, e2: hybrid2}
-            a, b = sorted((e1, e2))
-            hyb1_str = f"{hyb_atom_dict[a]}".lower()
-            hyb2_str = f"{hyb_atom_dict[b]}".lower()
-
-            # append atomic symbols (E) to the bonds_in_mol dict.
-            bonds_in_mol[bond_type_mapped].append({
-                "Bond Pair ID": f"{a}{hyb1_str}-{b}{hyb2_str}"
-            }) 
-        
-        # The nested dictionary result is initialized
         motif_result = {} 
+        bond_dict = {} 
+        dash_bond_map = {
+            Chem.BondType.SINGLE: "-", 
+            Chem.BondType.DOUBLE: "=", 
+            Chem.BondType.TRIPLE: "≡",
+        }
 
-        # Loop over the key (bond) and the value (bond_idx) in bonds_in_mol dict.  
-        # first for loop simply takes the list associated with one of the 4 bondization 
-        # values, and iterates over the total number of entries, i.e., 
-        # for a given sp3 you get 
-        # [Bond Pair ID: C-C, Bond Pair ID: C-C, Bond Pair ID: C-N], which has length 3.
+        mol_h = Chem.AddHs(mol) # mol but with added H's
+        for mol_bond in mol_h.GetBonds(): 
 
-        for bond_key, bond_list in bonds_in_mol.items():
-            if bond_list:
-                motif_result[f"Global: {bond_key}"] = len(bond_list) 
-                pair_list = []
-                pair_count_dict = {}
-                for bonds_in_mol_dict in bond_list: 
-                    name = bonds_in_mol_dict["Bond Pair ID"] 
-                    pair_list.append(name)
-                    if name in pair_list:
-                        pair_count_dict[name] = pair_count_dict.get(name, 0) + 1 # alternative to dict[key] += 1 
-                    else:
-                        pair_count_dict[name] = 0
-                for pair_name, pair_count in pair_count_dict.items():
-                    motif_result[f"{bond_key} {pair_name}"] = pair_count
+            bond_type = mol_bond.GetBondType()
+            bond_type_str = f"Global: " + f"{bond_type}".capitalize() 
+            dash_bond = dash_bond_map.get(mol_bond.GetBondType(), "Unk")
 
-        return motif_result 
+            atom1 = mol_bond.GetBeginAtom() 
+            atom2 = mol_bond.GetEndAtom() 
+
+            z1 = atom1.GetAtomicNum()
+            z2 = atom2.GetAtomicNum()
+            
+            e1 = Chem.GetPeriodicTable().GetElementSymbol(z1) if z1 > 0 else atom1.GetSmarts()
+            e2 = Chem.GetPeriodicTable().GetElementSymbol(z2) if z2 > 0 else atom2.GetSmarts()
+
+            hyb1 = atom1.GetHybridization() 
+            hyb2 = atom2.GetHybridization() 
+            
+            hyb1_pair = f"{e1}{hyb1}".capitalize()
+            hyb2_pair = f"{e2}{hyb2}".capitalize()
+
+            left, right = hyb1_pair, hyb2_pair 
+
+            bond = f"{left}{dash_bond}{right}"
+            bond_dict[bond] = bond_dict.get(bond, 0) + 1
+            bond_dict[bond_type_str] = bond_dict.get(bond_type_str, 0) + 1
+            
+        return bond_dict
 
     def canonical_torsion(self, tor_str: str):
-        sep = "-"
-        fwd = sep.join(tor_str.split(sep))
-        rev = sep.join(tor_str.split(sep)[::-1])
+        parts = re.findall(r"[^-=]+|[-=]", tor_str)
+        fwd = "".join(parts)
+        rev = "".join(parts[::-1])
         return min(fwd, rev) 
 
     def count_dihedral(self, mol, template_key: str, template_val: str):
         # Template for rotatable bonds
+        dash_bond_map = {
+            Chem.BondType.SINGLE: "-", 
+            Chem.BondType.DOUBLE: "=", 
+            Chem.BondType.TRIPLE: "≡",
+        }
+
         ROT_BONDS_SMARTS = Chem.MolFromSmarts(template_val)
         rot_matches = mol.GetSubstructMatches(ROT_BONDS_SMARTS)
         confs = mol.GetConformer() 
@@ -284,8 +255,8 @@ class MoleculeSorter:
             i = [n.GetIdx() for n in atom_j.GetNeighbors() if n.GetIdx() != k and n.GetAtomicNum()]
             # Neighbor atoms not including j (right side)
             l = [n.GetIdx() for n in atom_k.GetNeighbors() if n.GetIdx() != j and n.GetAtomicNum()]
-
             num_tbond = 0 # counter for num. torsions around central bond
+
             for m, n in product(i, l): # All possible combinations via cartesian product 
                 if m != n: # skips identical indices 
                     num_tbond += 1 
@@ -294,28 +265,40 @@ class MoleculeSorter:
                     continue
 
                 num_torsions += 1
-                atoms = [mol.GetAtomWithIdx(idx) for idx in (m, j, k, n)]
+                atom_idxs = [m, j, k, n]
+                atoms = [mol.GetAtomWithIdx(idx) for idx in atom_idxs]
                 atom_symbols = [a.GetSymbol() for a in atoms]
                 atom_symbols_str = '-'.join(atom_symbols)
                 hybrids = [atom.GetHybridization() for atom in atoms]
                 hybrids_str = [f"{hybrid}".lower() for hybrid in hybrids]
 
+                x = 0
+                y = 2
+                dash_bond_list = []
+                for atom in atom_idxs: 
+                    pair = atom_idxs[x:y]
+                    if y < 4:
+                        x += 1 
+                        y += 1
+                    atom1 = int(pair[0])
+                    atom2 = int(pair[1])
+                    bond = mol.GetBondBetweenAtoms(atom1, atom2)
+                    dash_bond_rep = dash_bond_map.get(bond.GetBondType(), "Unk") 
+                    dash_bond_list.append(dash_bond_rep)
+
                 # hybridization options 
-                if self.hybs == "all":
-                    torsion_string = f"{atom_symbols[0]}{hybrids_str[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}{hybrids_str[3]}"
-                elif self.hybs == "central":
-                    torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}{hybrids_str[1]}-{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}"
-                elif self.hybs == "none":
-                    torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}-{atom_symbols[2]}-{atom_symbols[3]}"
+                if self.hybs == "all": # dash_bo = "all"
+                    torsion_string = f"{atom_symbols[0]}{hybrids_str[0]}{dash_bond_list[0]}{atom_symbols[1]}{hybrids_str[1]}{dash_bond_list[1]}{atom_symbols[2]}{hybrids_str[2]}{dash_bond_list[2]}{atom_symbols[3]}{hybrids_str[3]}"
+                elif self.hybs == "central": # dash_bo = "central"
+                    torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}{hybrids_str[1]}{dash_bond_list[1]}{atom_symbols[2]}{hybrids_str[2]}-{atom_symbols[3]}"
+                elif self.hybs == "none": # dash_bo = "central"
+                    torsion_string = f"{atom_symbols[0]}-{atom_symbols[1]}{dash_bond_list[1]}{atom_symbols[2]}-{atom_symbols[3]}"
 
-                # normalization options
                 if self.canon_tor is True:
-                    canon_tor = self.canonical_torsion(torsion_string) 
-                    torsions = canon_tor
-                elif self.canon_tor is False:
-                    torsions = torsion_string 
-
-                torsion_counts[torsions] = torsion_counts.get(torsions, 0) + 1 
+                    torsion_string = self.canonical_torsion(torsion_string)
+                else:
+                    torsion_string 
+                torsion_counts[torsion_string] = torsion_counts.get(torsion_string, 0) + 1 
         
         torsions_result = {}
         for label, val in torsion_counts.items():

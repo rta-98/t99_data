@@ -243,7 +243,7 @@ def count_dihedral(mol, template_key: str, template_val: str):
     confs = mol.GetConformer() 
     traversed = set() 
     unique_rot_matches = []
-    hybs = "all"
+    hybs = "central"
     canon_tor = True
     for j, k in rot_matches:  
         bond = (min(j, k), max(j, k)) # e.g., min(7, 3), max(7, 3) -> (3, 7) 

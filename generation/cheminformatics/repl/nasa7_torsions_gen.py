@@ -164,7 +164,7 @@ def normal_check(input_df: pd.DataFrame):
 
     return rev_check 
 
-#|%%--%%| <a0RkJocbnJ|9DkIEAdTIa>
+#|%%--%%| <a0RkJocbnJ|Bv47wk1YnN>
 """ "df" + numeric suffix 1-4; descriptions below:
         1. torsions normalized; xhyb-xhyb-xhyb-xhyb
         2. torsions unnormalized; xhyb-xhyb-xhyb-xhyb
@@ -219,3 +219,86 @@ df4_dedup_drop = drop_df_rows(input_df=df4_dedup, col_name="Global: Torsional Ax
 csv_generator(df4_dedup, "df4")
 csv_generator(df4_dedup_drop, "df4_drop")
 
+#|%%--%%| <Bv47wk1YnN|9DkIEAdTIa>
+""" >In all 6 datasets in the directory feature_bo_dashes/, bond order plus hybridization 
+      is specified via "-" or "=" for bond pairs, e.g., Csp2=Osp2. 
+    >Also, I've replaced "Global Count" with "Global"; "Local Count" was completely dropped. 
+    >"drop" meaning 0 torsion mols. removed 
+    >"df" + numeric suffix 1-4; descriptions below:
+        1. torsions normalized; xhyb-xhyb-xhyb-xhyb; all dash_bo 
+        2. torsions unnormalized; xhyb-xhyb-xhyb-xhyb; all dash_bo
+        3. torsions normalized; x-xhyb-xhyb-x; central dash_bo 
+        4. torsions unnormalized; x-xhyb-xhyb-x; central dash_bo 
+        5. torsions normalized; x-x-x-x; no dash_bo
+        6. torsions unnormalized; x-x-x-x; no dash_bo """
+    
+#1 ---------------------------------
+bpdb_inst1 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="all", many_one="one")
+ms_inst1 = MoleculeSorter(bpdb_inst1)
+dict1 = ms_inst1.analyze_all()
+df1 = pd.DataFrame(dict1).T
+df1_merged = merger(df1, name_nasa7_202_df).fillna(0)
+df1_dedup = df1_merged.drop_duplicates(subset=["Molecule"])
+df1_dedup_drop = drop_df_rows(input_df=df1_dedup, col_name="Global: Torsional Axes")
+csv_generator(df1_dedup, "df1")
+csv_generator(df1_dedup_drop, "df1_drop")
+
+#2 ---------------------------------
+bpdb_inst2 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=False, hybs="all", many_one="one")
+ms_inst2 = MoleculeSorter(bpdb_inst2)
+dict2 = ms_inst2.analyze_all()
+df2 = pd.DataFrame(dict2).T
+df2_merged = merger(df2, name_nasa7_202_df).fillna(0)
+len(df2_merged.columns)
+df2_dedup = df2_merged.drop_duplicates(subset=["Molecule"])
+df2_dedup_drop = drop_df_rows(input_df=df2_dedup, col_name="Global: Torsional Axes")
+csv_generator(df2_dedup, "df2")
+csv_generator(df2_dedup_drop, "df2_drop")
+
+#3 ---------------------------------
+bpdb_inst3 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="central", many_one="one")
+ms_inst3 = MoleculeSorter(bpdb_inst3)
+dict3 = ms_inst3.analyze_all()
+df3 = pd.DataFrame(dict3).T
+df3_merged = merger(df3, name_nasa7_202_df).fillna(0)
+len(df3_merged.columns)
+df3_dedup = df3_merged.drop_duplicates(subset=["Molecule"])
+df3_dedup_drop = drop_df_rows(input_df=df3_dedup, col_name="Global: Torsional Axes")
+csv_generator(df3_dedup, "df3")
+csv_generator(df3_dedup_drop, "df3_drop")
+
+#4 ---------------------------------
+bpdb_inst4 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=False, hybs="central", many_one="one")
+ms_inst4 = MoleculeSorter(bpdb_inst4)
+dict4 = ms_inst4.analyze_all()
+df4 = pd.DataFrame(dict4).T
+df4_merged = merger(df4, name_nasa7_202_df).fillna(0)
+len(df4_merged.columns)
+df4_dedup = df4_merged.drop_duplicates(subset=["Molecule"])
+df4_dedup_drop = drop_df_rows(input_df=df4_dedup, col_name="Global: Torsional Axes")
+csv_generator(df4_dedup, "df4")
+csv_generator(df4_dedup_drop, "df4_drop")
+
+#5 ---------------------------------
+bpdb_inst5 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="none", many_one="one")
+ms_inst5 = MoleculeSorter(bpdb_inst5)
+dict5 = ms_inst5.analyze_all()
+df5 = pd.DataFrame(dict5).T
+df5_merged = merger(df5, name_nasa7_202_df).fillna(0)
+len(df5_merged.columns)
+df5_dedup = df5_merged.drop_duplicates(subset=["Molecule"])
+df5_dedup_drop = drop_df_rows(input_df=df5_dedup, col_name="Global: Torsional Axes")
+csv_generator(df5_dedup, "df5")
+csv_generator(df5_dedup_drop, "df5_drop")
+
+#6 ---------------------------------
+bpdb_inst6 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=False, hybs="none", many_one="one")
+ms_inst6 = MoleculeSorter(bpdb_inst6)
+dict6 = ms_inst6.analyze_all()
+df6 = pd.DataFrame(dict6).T
+df6_merged = merger(df6, name_nasa7_202_df).fillna(0)
+len(df6_merged.columns)
+df6_dedup = df6_merged.drop_duplicates(subset=["Molecule"])
+df6_dedup_drop = drop_df_rows(input_df=df6_dedup, col_name="Global: Torsional Axes")
+csv_generator(df6_dedup, "df6")
+csv_generator(df6_dedup_drop, "df6_drop")
