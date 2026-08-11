@@ -111,6 +111,9 @@ class InternalValid:
 
 
 class SubstructMatch(InternalValid):
+"""
+    Motif Smarts 
+"""
     sub_mol_pfeca = Chem.MolFromSmarts('[*]-[#8]-[#6](-[#6](=[#8])-[#8]-[#1])(-[#9])-[*]') # perfluoroether carboxylic acids
 
     sub_mol_ftsm = Chem.MolFromSmarts('[#7](-[#16](=[#8])(=[#8])-[#6](-[#6](-[*])(-[#1])-[#1])(-[#1])-[#1])(-[#1])-[#1]') # fluorotelomer sulfonamides 
@@ -129,6 +132,14 @@ class SubstructMatch(InternalValid):
 
     sub_mol_pfal = Chem.MolFromSmarts('[#6](=[#8])(-[#9])-[#6](-[#9])(-[#9])-[*]') # perfluoroaldehydes  
  
+"""
+    Tail Smarts
+"""
+
+    sub_mol_CF3 = Chem.MolFromSmarts('[#6](-[*])(-[#9])(-[#9])-[#9]')
+
+    sub_mol_CF2 = Chem.MolFromSmarts('[#6](-[*])(-[#9])(-[#9])-[*]')
+
     if sub_mol_pfeca is None: 
         print("ERROR") 
 
@@ -187,7 +198,7 @@ class SubstructMatch(InternalValid):
             return True
         return False
 
-    def classify(self, mol) -> str:
+    def classifyMotif(self, mol) -> str:
         cond_flag = False 
         if self.match_pfeca(mol):
             mol_cats = "PFECA"
@@ -227,13 +238,19 @@ class SubstructMatch(InternalValid):
 
         return str(mol_cats)
 
-         
-    def create_images(self, mol_array):
-        try: 
-            for smi, mol in self.mol_array: 
-                fname_match = f"{smi}.png" 
-                path = OUTPUT_DIR / fname_match 
-                img_match = Draw.MolToImage(mol, size=SIZE)
-                img_match.save(path)
-        except Exception as e: 
-            raise RuntimeError(f'Error in create_images(): {e}') 
+    def classifyTail(self, mol) -> dict:
+        cf2_matches = mol.GetSubstructMatches(self.sub_mol_CF2)
+        cf3_matches = mol.GetSubstructMatches(self.sub_mol_CF3)
+        matches = {
+            "Global: CF2": f"{len(cf2_matches)}"
+            "Global: CF3": f"{len(cf3_matches)}"
+        }
+        return matches
+        
+#class IterateMatches(SubstructMatch):
+#    def __init__(self):
+#        self.matches_list = []
+
+
+
+

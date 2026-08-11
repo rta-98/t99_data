@@ -12,6 +12,7 @@ from itertools import zip_longest, product
 from collections import Counter 
 from collections.abc import Collection 
 from typing import Literal 
+import pubchempy as pcp 
 
 FORBIDDEN = frozenset({ "S", "N" }) # molecules to exclude  
 TEMPLATES = {"Torsional Axes": '[!$(*#*)&!D1]-,=&!@[!$(*#*)&!D1]'}
@@ -125,6 +126,13 @@ class MoleculeSorter:
         drawer.WriteDrawingText(self.img_path / img_path)
         return img_path
 
+#    def get_pubdata(self, smiles: str):
+#        try: 
+#            result = pcp.get_compounds(f"{smiles}", "smiles") 
+#        except Exception as e:
+#            result == "Unk." 
+#        return result 
+
     def append_pdb(self, name: str): 
         for file in self.pdb_path.iterdir(): 
             if Path(file).stem == name: 
@@ -135,7 +143,7 @@ class MoleculeSorter:
         mol = Chem.MolFromSmiles(InternalValid.validator(smiles))
         mol_h = Chem.AddHs(mol)
         matcher = SubstructMatch() 
-        cat = matcher.classify(mol=mol_h) 
+        cat = matcher.classifyMotif(mol=mol_h) 
         return str(cat)
         
     def has_atom(
@@ -175,6 +183,9 @@ class MoleculeSorter:
                 "results" : [], 
                 } 
         
+        # appending Pubchem data match column to analyzer_dict
+        analyzer_dict["IUPAC"] = self.get_pubdata(smiles)
+        
         # appending substructure match column to analyzer_dict
         analyzer_dict["Motif"] = self.get_subst(smiles)
 
@@ -190,8 +201,8 @@ class MoleculeSorter:
         for atom, atom_count in num_atoms_dict.items():
             analyzer_dict[f"{atom} Count"] = atom_count
 
-        # parsing count_motif() dict output; appending to analyzer dict
-        motif_dict = self.count_motif(mol) 
+        # parsing count_bond() dict output; appending to analyzer dict
+        motif_dict = self.count_bond(mol) 
         for bond, bond_vals in motif_dict.items():
             analyzer_dict[bond] = bond_vals
        
@@ -219,7 +230,7 @@ class MoleculeSorter:
             cnt[f"{E}{hybrid_str}"] += 1
         return dict(cnt)
 
-    def count_motif(self, mol): 
+    def count_bond(self, mol): 
         motif_result = {} 
         bond_dict = {} 
         dash_bond_map = {
@@ -258,13 +269,14 @@ class MoleculeSorter:
             
         return bond_dict
 
+    def count_motif(self, mol):
+
+        
     def canonical_torsion(self, tor_str: str):
         parts = re.findall(r"[^-=]+|[-=]", tor_str)
         fwd = "".join(parts)
         rev = "".join(parts[::-1])
         return min(fwd, rev) 
-
-    def count_subst(self, mol):
 
 
     def count_dihedral(self, mol, template_key: str, template_val: str):
