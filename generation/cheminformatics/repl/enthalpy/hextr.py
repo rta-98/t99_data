@@ -1,10 +1,10 @@
 from pathlib import Path
 import pandas as pd 
 
-step1_dir = Path('/home/yang/projects/62_ftab/62_ftab/KINETIC_NETWORK/STEP1')
-step2_dir = Path('/home/yang/projects/62_ftab/62_ftab/KINETIC_NETWORK/STEP2')
-step3_dir = Path('/home/yang/projects/62_ftab/62_ftab/KINETIC_NETWORK/STEP3')
-step3a_dir = Path('/home/yang/projects/62_ftab/62_ftab/KINETIC_NETWORK/STEP3a')
+step1_dir = Path('/home/yang/projects/62_ftab/KINETIC_NETWORK/STEP1')
+step2_dir = Path('/home/yang/projects/62_ftab/KINETIC_NETWORK/STEP2')
+step3_dir = Path('/home/yang/projects/62_ftab/KINETIC_NETWORK/STEP3')
+step3a_dir = Path('/home/yang/projects/62_ftab/KINETIC_NETWORK/STEP3a')
 
 step1_list = []
 for file in step1_dir.iterdir():
@@ -19,7 +19,7 @@ H_LIST = []
 total = sum(step1_list)
 print(total)
 #|%%--%%| <lKwLnlIV0C|67LiI7qZkI>
-jens_data = Path('/home/yang/projects/62_ftab/62_ftab/KINETIC_NETWORK/data.csv')
+jens_data = Path('/home/yang/projects/62_ftab/KINETIC_NETWORK/data.csv')
 jens_csv = pd.read_csv(jens_data, sep=r",", engine="python")
 #|%%--%%| <67LiI7qZkI|5DdH4vsa2Q>
 seen = set()
@@ -99,3 +99,19 @@ new_jens_csv = jens_csv.assign(H_0K=H_LIST)
 
     #csvdf = df.to_csv(filename, index=index) # include index positional argument for to_csv() 
 new_jens_csv.to_csv("62_ftab_H_ext.csv")
+
+#|%%--%%| <45M3bnAap7|DJqRFl4EGk>
+print(-2689.205484)
+
+hrt = 627.509
+z = ((-2689.205484 + 2689.206428)) # thermal energies - thermal enthalpies
+print((0.415081-z) * hrt) # proves thermal correction to enthalpy contains RT
+
+#|%%--%%| <DJqRFl4EGk|eClUtIir04>
+for file in step1_dir.iterdir():
+    if file.name == "GS.txt":
+        df = pd.read_csv(file, sep=r"\s+", engine="python")
+        #out = df[['Enthalpy', 'H']].copy()
+        out = df.copy()
+        zed = out['Enthalpy'] - out['Zero_Point']         
+        print(zed*hrt)

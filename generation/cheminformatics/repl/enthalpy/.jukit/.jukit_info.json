@@ -1,1 +1,1 @@
-{"cmd":"new_jens_csv.to_csv(\"62_ftab_H_ext.csv\")","cmd_opts":"","import_complete":1,"terminal":"tmux"}
+{"cmd":"for file in step1_dir.iterdir():\n    if file.name == \"GS.txt\":\n        df = pd.read_csv(file, sep=r\"\\s+\", engine=\"python\")\n        #out = df[['Enthalpy', 'H']].copy()\n        out = df.copy()\n        zed = out['Enthalpy'] - out['Zero_Point']         \n        print(zed*hrt)\n","cmd_opts":" --cell_id=eClUtIir04 -s","import_complete":1,"terminal":"tmux"}

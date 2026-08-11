@@ -207,19 +207,12 @@ def count_motif(mol):
         hyb1 = atom1.GetHybridization() 
         hyb2 = atom2.GetHybridization() 
         
-#        hyb_atom_dict = {e1: hyb1, e2: hyb2}
-#        a, b = sorted((e1, e2))
-
-#        hyb1_str = f"{hyb_atom_dict[a]}".lower()
-#        hyb2_str = f"{hyb_atom_dict[b]}".lower()
-
         hyb1_pair = f"{e1}{hyb1}".capitalize()
         hyb2_pair = f"{e2}{hyb2}".capitalize()
 
-#        left, right = sorted([hyb1_pair, hyb2_pair])
-        left, right = hyb1_pair, hyb2_pair 
+        a, b = sorted((hyb1_pair, hyb2_pair))
 
-        bond = f"{left}{dash_bond}{right}"
+        bond = f"{a}{dash_bond}{b}"
         bond_dict[bond] = bond_dict.get(bond, 0) + 1
         bond_dict[bond_type_str] = bond_dict.get(bond_type_str, 0) + 1
         
@@ -322,7 +315,7 @@ def count_dihedral(mol, template_key: str, template_val: str):
     return torsions_result 
         
 #|%%--%%| <gPpYHhvciX|P3VTxeLmfm>
-mol_10 = mol_202_list[11:20]
+mol_10 = mol_202_list[40:50]
 for mol in mol_10:
     smiles = Chem.MolToSmiles(mol)
     print(smiles)

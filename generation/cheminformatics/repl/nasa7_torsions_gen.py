@@ -1,5 +1,7 @@
 import os 
+import inspect 
 os.chdir('/home/yang/projects/t99_calc/data/generation/cheminformatics')
+import importlib 
 import inspect
 import pandas as pd
 import numpy as np 
@@ -9,21 +11,31 @@ from rdkit import Chem
 from rdkit.Chem import MolFromSmiles 
 from modules.data import bridge
 from modules.data import sorting
-#|%%--%%| <Ro7OW3k33G|a0RkJocbnJ>
-os.chdir('/home/yang/projects/t99_calc/data/')
-base = Path.cwd()
+from modules.data import services
+from typing import Callable
 
+os.chdir('/home/yang/projects/t99_calc/data/')
 base = Path.cwd()
 
 # parent directories 
 qchem_data = base / "./storage"
 csv = qchem_data / "./csv"
+pdb = qchem_data / "./pdb"
 sdf = qchem_data / "./sdf"
+json = qchem_data / " ./json"
+img = qchem_data / "./img"
 combined = qchem_data / "./combined" 
+
+#from pathlib import Path
+#  # Define your path
+#  my_dir = Path("my_folder/sub_folder")
+#  # Create the directory if it doesn't exist
+#  my_dir.mkdir(parents=True, exist_ok=True)
 
 # child directories 
 qchem_out = combined / "./log_fchk"
 smiles_out = combined / "./log_fchk_to_smiles"
+sdf_out = sdf / "./df_smiles"
 
 # files 
 name_nasa7_202_csv = csv / "./nasa7_202_concat.csv"
@@ -39,6 +51,8 @@ file_289_csv = csv / "./f2mol_289.csv"
 BytesPDB = sorting.BytesPDB
 MoleculeSorter = sorting.MoleculeSorter
 csv_generator = bridge.csv_generator 
+save_mols_sdf = bridge.save_mols_sdf
+# help(save_mols_sdf)
 
 # functions
 def merger(left, right):
@@ -47,8 +61,7 @@ def merger(left, right):
     return new 
 
 load_mols_sdf = bridge.load_mols_sdf
-mols_289 = load_mols_sdf(combined_289_sdf)
-
+mols_289 = load_mols_sdf(combined_289_sdf)[0]
 file_289_df = pd.read_csv(file_289_csv)
 name_nasa7_202_df = pd.read_csv(name_nasa7_202_csv)
 
@@ -86,6 +99,7 @@ smiles_202_list = []
 mol_202_list = [] 
 name_202_list = []
 
+file_mol_289_df["Input File"]
 for row_index, row in file_mol_289_df.iterrows():
     file_289 = row["Input File"]
     mol_289 = row["mol"]
@@ -100,7 +114,15 @@ for smiles_name, smiles in zip(smiles_289_dict["File"], smiles_289_dict["SMILES"
     for name in name_202_list:
         if name == smiles_name:
             smiles_202_list.append(smiles)
-            
+
+#|%%--%%| <a0RkJocbnJ|GEgn964cEB>
+"""
+for name, mol in zip(name_202_list, mol_202_list):
+    file_name = f'{name}.sdf'
+    with Chem.SDWriter( qchem_data / "./sdf_202_list" / file_name ) as writer:
+        writer.write(mol)
+"""
+#|%%--%%| <GEgn964cEB|vd1BQf6Rcc>
 # Functions to reverse asterik-containing labels, normalize/combine them. 
 def rev_tor_label(label: str, sep='-') -> str:
     reverse_label = sep.join(label.split(sep)[::-1])
@@ -164,7 +186,7 @@ def normal_check(input_df: pd.DataFrame):
 
     return rev_check 
 
-#|%%--%%| <a0RkJocbnJ|Bv47wk1YnN>
+#|%%--%%| <vd1BQf6Rcc|Bv47wk1YnN>
 """ "df" + numeric suffix 1-4; descriptions below:
         1. torsions normalized; xhyb-xhyb-xhyb-xhyb
         2. torsions unnormalized; xhyb-xhyb-xhyb-xhyb
@@ -172,7 +194,7 @@ def normal_check(input_df: pd.DataFrame):
         4. torsions unnormalized; x-xhyb-xhyb-x 
     "drop" meaning 0 torsion mols. removed """
 #1 ---------------------------------
-bpdb_inst1 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="all", many_one="one")
+bpdb_inst1 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="all", many_one="one", img_path=img)
 ms_inst1 = MoleculeSorter(bpdb_inst1)
 dict1 = ms_inst1.analyze_all()
 df1 = pd.DataFrame(dict1).T
@@ -219,7 +241,7 @@ df4_dedup_drop = drop_df_rows(input_df=df4_dedup, col_name="Global: Torsional Ax
 csv_generator(df4_dedup, "df4")
 csv_generator(df4_dedup_drop, "df4_drop")
 
-#|%%--%%| <Bv47wk1YnN|9DkIEAdTIa>
+#|%%--%%| <Bv47wk1YnN|8dQmXQAtkb>
 """ >In all 6 datasets in the directory feature_bo_dashes/, bond order plus hybridization 
       is specified via "-" or "=" for bond pairs, e.g., Csp2=Osp2. 
     >Also, I've replaced "Global Count" with "Global"; "Local Count" was completely dropped. 
@@ -231,18 +253,26 @@ csv_generator(df4_dedup_drop, "df4_drop")
         4. torsions unnormalized; x-xhyb-xhyb-x; central dash_bo 
         5. torsions normalized; x-x-x-x; no dash_bo
         6. torsions unnormalized; x-x-x-x; no dash_bo """
-    
 #1 ---------------------------------
-bpdb_inst1 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="all", many_one="one")
+importlib.reload(sorting)
+img = Path('/home/yang/exercises/js/img_gallery/static/storage/png')
+#inspect.getsource(sorting.MoleculeSorter.append_png)
+#inspect.getsource(sorting.MoleculeSorter.get_subst)
+#help(sorting.MoleculeSorter.append_png)
+
+bpdb_inst1 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=True, hybs="all", many_one="one", img_path=img, pdb_path=pdb, ysn=True)
 ms_inst1 = MoleculeSorter(bpdb_inst1)
 dict1 = ms_inst1.analyze_all()
 df1 = pd.DataFrame(dict1).T
 df1_merged = merger(df1, name_nasa7_202_df).fillna(0)
 df1_dedup = df1_merged.drop_duplicates(subset=["Molecule"])
-df1_dedup_drop = drop_df_rows(input_df=df1_dedup, col_name="Global: Torsional Axes")
+df1_dedup_drop_fbd = drop_df_rows(input_df=df1_dedup, col_name="Global: Torsional Axes")
+df1_dedup_drop_fbd["img"]
 csv_generator(df1_dedup, "df1")
-csv_generator(df1_dedup_drop, "df1_drop")
+csv_generator(df1_dedup_drop_fbd, "df1_drop_dedup_drop_fbd")
+df1_dedup.to_json("./storage/json/df1_fbd.json", orient="records")
 
+#|%%--%%| <8dQmXQAtkb|GHADCbLzjp>
 #2 ---------------------------------
 bpdb_inst2 = BytesPDB(name=name_202_list, mol=mol_202_list, smiles=smiles_202_list, canon_tor=False, hybs="all", many_one="one")
 ms_inst2 = MoleculeSorter(bpdb_inst2)
@@ -302,3 +332,31 @@ df6_dedup = df6_merged.drop_duplicates(subset=["Molecule"])
 df6_dedup_drop = drop_df_rows(input_df=df6_dedup, col_name="Global: Torsional Axes")
 csv_generator(df6_dedup, "df6")
 csv_generator(df6_dedup_drop, "df6_drop")
+#|%%--%%| <GHADCbLzjp|unl8HDgqWY>
+# Correlating the SMILES from df1.json to a Mol object, then storing them in a single SDF file 
+# so that order is maintained.
+pd.set_option('display.max_colwidth', None)
+#print(df1[["Molecule", "SMILES", "Motif"]].head(100).to_string(index=False))
+df1_dedup_drop_fbd.to_json("./storage/json/df1_fbd.json", orient="records")
+df1_fbd_smiles_list = df1_dedup_drop_fbd["Molecule"].to_list() 
+len(df1_fbd_smiles_list)
+
+def smile_to_sdf(
+        sdf_out: Path, 
+        names_in: list, 
+        mol_df: pd.DataFrame,
+        save_mols_sdf: Callable[[list, Path], None]) -> None:
+
+    """ Function which correlates the smiles of a dataframe, to their 
+        respective Mol object, then saves them in a single SDF file. """
+    corr_mol_list = []
+    for ridx, r in mol_df.iterrows(): 
+        mol_file = r["Input File"]
+        mol_objs = r["mol"]
+        mol_name = Path(mol_file).stem
+        for name in names_in: 
+            if name == mol_name: 
+                corr_mol_list.append(mol_objs) 
+    save_mols_sdf(corr_mol_list, sdf_out / "df1_fbd.sdf")
+
+smile_to_sdf(sdf_out=sdf_out, names_in=df1_fbd_smiles_list, mol_df=file_mol_289_df, save_mols_sdf=save_mols_sdf)

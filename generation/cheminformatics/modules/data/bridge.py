@@ -1,4 +1,4 @@
-from ..app.services import *
+from . import services
 from openbabel import openbabel as ob
 from pathlib import Path
 import pandas as pd
@@ -155,16 +155,12 @@ class AppendToCSV:
         self.merged_df = self.csv_df.join(df_right, how="left", sort=False).reset_index() 
         return self.merged_df
 
-# Mol objects generated in-situ saved to a single SDF file for reuse purposes 
-# Identified by order 
-def save_mols_sdf(mols, path): 
-    writer = Chem.SDWriter(str(path)) 
-    try: 
+# Mol objects generated in-situ saved to a single SDF file for reuse purposes identified by order 
+def save_mols_sdf(mols: list, path: Path): 
+    with Chem.SDWriter(str(path)) as writer:
         for m in mols: 
             if m is not None:
                 writer.write(m) 
-    finally: 
-        writer.close() 
 
 def load_mols_sdf(path): 
     """Produces Mol objects from an .sdf
@@ -174,10 +170,17 @@ def load_mols_sdf(path):
         list[Mol]: a list of mol objects; the order in which 
                     mol objects were fed in to save_mols_sdf(): 
                     is the order in which they are returned here. 
-    out: Mol object
+    Out: Mol object
     """
+    mols = []
+    paths = []
     suppl = Chem.SDMolSupplier(str(path), sanitize=True, removeHs=False) 
-    return [m for m in suppl if m is not None] 
+    for mol in suppl:
+        if mol is not None:
+            mols.append(mol) 
+            path = mol.GetProp("_Name") 
+            paths.append(path)
+    return mols, paths
 
 def csv_generator(df, fname: str, index: Optional[bool]=False):
     filename = f"{fname}.csv" 
@@ -193,6 +196,3 @@ def rev_tor_label(label: str, sep='-') -> str:
     reverse_label = sep.join(label.split(sep)[::-1])
     return reverse_label
 
-def rev_tor_label(label: str, sep='-') -> str:
-    reverse_label = sep.join(label.split(sep)[::-1])
-    return reverse_label

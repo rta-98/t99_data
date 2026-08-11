@@ -1,9 +1,10 @@
-from modules.app.services import *
+from modules.data.services import *
 from modules.app.display import * 
 from modules.data.bridge import *
 from typing import Optional, List 
 from dataclasses import dataclass 
 from rdkit import Chem
+from rdkit.Chem import Draw, AllChem
 from rdkit.Chem import rdMolTransforms, rdMolDescriptors
 from rdkit.Chem.rdchem import Mol
 from pathlib import Path 
@@ -13,10 +14,7 @@ from collections.abc import Collection
 from typing import Literal 
 
 FORBIDDEN = frozenset({ "S", "N" }) # molecules to exclude  
-
-TEMPLATES = {
-        "Torsional Axes": '[!$(*#*)&!D1]-,=&!@[!$(*#*)&!D1]',
-    }
+TEMPLATES = {"Torsional Axes": '[!$(*#*)&!D1]-,=&!@[!$(*#*)&!D1]'}
 
 class BytesPDB:
     """ INPUT: file name, mol objects, and SMILES as separate, equally sized lists. 
@@ -34,21 +32,27 @@ class BytesPDB:
             #dash_bo: "all" for all atoms
                       "central" for the middle two 
         OUTPUT: flat dictionary of molecular info. """
+
     def __init__(self, 
                  name: list, # Usually derived from Path(<file>).stem and contained in "Molecules"  
                  smiles: list, # Accepts non-canonical SMILES
                  mol: list,
                  many_one: str,
                  hybs: str, 
+                 img_path: Optional[Path] = None,
+                 pdb_path: Optional[Path] = None,
+                 ysn: Optional[bool] = False, 
                  canon_tor: Optional[bool] = True): # Mol objects stored in RAM  
-                
         # --------------------------------- 
         self.name = name
         self.smiles = smiles
         self.mol = mol
         self.many_one = many_one
         self.hybs = hybs
+        self.ysn = ysn 
         self.canon_tor = canon_tor
+        self.img_path = img_path
+        self.pdb_path = pdb_path 
         # ---------------------------------
         self.smiles_names_mols_dict = {
                 "Name": [],
@@ -69,7 +73,10 @@ class MoleculeSorter:
         self.imported_mol_data: dict = molecule_sorter.bookeeper() 
         self.many_one: str = molecule_sorter.many_one
         self.hybs: str = molecule_sorter.hybs
+        self.ysn: bool = molecule_sorter.ysn 
         self.canon_tor: bool = molecule_sorter.canon_tor 
+        self.img_path: Path = molecule_sorter.img_path
+        self.pdb_path: Path = molecule_sorter.pdb_path
         self.name = self.imported_mol_data["Name"]
         self.smiles = self.imported_mol_data["SMILES"] 
         self.mol = self.imported_mol_data["Mol Object"]
@@ -79,13 +86,15 @@ class MoleculeSorter:
         self.custom_dict: dict = {} # 5/19: Viet wishes to combine non-rotatable bonds, with Sulfur & Nitrogen devoid dataset
         self.dud_list = [] # err 
 
-
     def analyze_all(self): 
         for i, (name, smiles, mol) in enumerate(
                 zip(self.name, self.smiles, self.mol, strict=True)
         ):
-            if not self.has_atom(mol):
+            if self.ysn is True: 
                 self.custom_dict[name] = self.analyzer(name, smiles, mol)
+            elif self.ysn is False: 
+                if not self.has_atom(mol):
+                    self.custom_dict[name] = self.analyzer(name, smiles, mol)
             if not self.has_rot(mol):
                 self.non_rot_dict[name] = self.analyzer(name, smiles, mol) 
                 continue 
@@ -97,20 +106,48 @@ class MoleculeSorter:
             result = (self.mol_sorted_dict, self.forbidden_dict, self.non_rot_dict, self.custom_dict)
         if self.many_one == "one":
             result = self.custom_dict
-
         return result
-    
-    def has_atom(
-            self,
-            mol: Optional[Mol] = None, 
-            smiles: Optional[str] = None, 
-            forbidden: Collection[str] = FORBIDDEN) -> bool: 
 
+    def append_png(self, name: str, smiles: Optional[str] = None) -> Path:
+        """ Saves to a specified dir; then prints the path for the final df """ 
+        mol_canon = Chem.MolFromSmiles(InternalValid.validator(smiles))
+        SIZE = (200,200)
+        BG_COLOR = (.29, .31, .33)
+        img_path = f"{name}.png"
+        mol_h = mol_canon
+        AllChem.Compute2DCoords(mol_h)
+        drawer = rdMolDraw2D.MolDraw2DCairo(200, 200)
+        live_ops = drawer.drawOptions()
+        live_ops.setBackgroundColour(BG_COLOR) 
+        live_ops.bracketsAroundAtomLists = False 
+        drawer.DrawMolecule(mol_h)
+        drawer.FinishDrawing() 
+        drawer.WriteDrawingText(self.img_path / img_path)
+        return img_path
+
+    def append_pdb(self, name: str): 
+        for file in self.pdb_path.iterdir(): 
+            if Path(file).stem == name: 
+                pdb_name = Path(file).name 
+                return pdb_name
+
+    def get_subst(self, smiles: Optional[str] = None) -> bool:
+        mol = Chem.MolFromSmiles(InternalValid.validator(smiles))
+        mol_h = Chem.AddHs(mol)
+        matcher = SubstructMatch() 
+        cat = matcher.classify(mol=mol_h) 
+        return str(cat)
+        
+    def has_atom(
+        self,
+        mol: Optional[Mol] = None, 
+        smiles: Optional[str] = None, 
+        forbidden: Collection[str] = FORBIDDEN) -> bool: 
         return any(atom.GetSymbol() in forbidden for atom in mol.GetAtoms()) 
 
     def has_rot(
-            self, 
-            mol: Optional[Mol] = None) -> bool: 
+        self, 
+        mol: Optional[Mol] = None) -> bool: 
         try: 
             n_rot = rdMolDescriptors.CalcNumRotatableBonds(
                 mol, rdMolDescriptors.NumRotatableBondsOptions.Strict
@@ -137,7 +174,16 @@ class MoleculeSorter:
         stored_torsions = {
                 "results" : [], 
                 } 
+        
+        # appending substructure match column to analyzer_dict
+        analyzer_dict["Motif"] = self.get_subst(smiles)
 
+        # appending pdb path match column to analyzer_dict 
+        analyzer_dict["pdb"] = self.append_pdb(name) 
+
+        # appending img paths column to analyzer_dict 
+        analyzer_dict["img"] = self.append_png(name, smiles)
+         
         # parsing count_atoms() dict output; appending to analyzer dict
         num_atoms_dict = self.count_atoms(mol) 
         analyzer_dict["Global: Rot Bonds"] = self.calc_rot(mol) 
@@ -158,7 +204,6 @@ class MoleculeSorter:
         for results in stored_torsions["results"]:
             for tor, tor_vals in results.items():
                 analyzer_dict[tor] = tor_vals
-
         return analyzer_dict
 
     def count_atoms(self, mol): 
@@ -205,9 +250,9 @@ class MoleculeSorter:
             hyb1_pair = f"{e1}{hyb1}".capitalize()
             hyb2_pair = f"{e2}{hyb2}".capitalize()
 
-            left, right = hyb1_pair, hyb2_pair 
+            a, b = sorted((hyb1_pair, hyb2_pair))
 
-            bond = f"{left}{dash_bond}{right}"
+            bond = f"{a}{dash_bond}{b}"
             bond_dict[bond] = bond_dict.get(bond, 0) + 1
             bond_dict[bond_type_str] = bond_dict.get(bond_type_str, 0) + 1
             
@@ -218,6 +263,9 @@ class MoleculeSorter:
         fwd = "".join(parts)
         rev = "".join(parts[::-1])
         return min(fwd, rev) 
+
+    def count_subst(self, mol):
+
 
     def count_dihedral(self, mol, template_key: str, template_val: str):
         # Template for rotatable bonds
