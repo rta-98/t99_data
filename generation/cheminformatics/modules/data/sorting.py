@@ -145,6 +145,13 @@ class MoleculeSorter:
         matcher = SubstructMatch() 
         cat = matcher.classifyMotif(mol=mol_h) 
         return str(cat)
+
+    def count_cf(self, smiles):
+        mol = Chem.MolFromSmiles(InternalValid.validator(smiles))
+        mol_h = Chem.AddHs(mol)
+        matcher = SubstructMatch() 
+        cf_dict = matcher.classifyTail(mol=mol_h) 
+        return cf_dict
         
     def has_atom(
         self,
@@ -183,11 +190,13 @@ class MoleculeSorter:
                 "results" : [], 
                 } 
         
-        # appending Pubchem data match column to analyzer_dict
-        analyzer_dict["IUPAC"] = self.get_pubdata(smiles)
-        
-        # appending substructure match column to analyzer_dict
+        # appending substructure (motif) match column to analyzer_dict
         analyzer_dict["Motif"] = self.get_subst(smiles)
+
+        # appending substructure (tail) match column to analyzer_dict 
+        cf_dict = self.count_cf(smiles)
+        for k, v in cf_dict.items():
+            analyzer_dict[k] = v 
 
         # appending pdb path match column to analyzer_dict 
         analyzer_dict["pdb"] = self.append_pdb(name) 
@@ -269,15 +278,13 @@ class MoleculeSorter:
             
         return bond_dict
 
-    def count_motif(self, mol):
 
-        
+
     def canonical_torsion(self, tor_str: str):
         parts = re.findall(r"[^-=]+|[-=]", tor_str)
         fwd = "".join(parts)
         rev = "".join(parts[::-1])
         return min(fwd, rev) 
-
 
     def count_dihedral(self, mol, template_key: str, template_val: str):
         # Template for rotatable bonds

@@ -43,9 +43,14 @@ for cid_list in results:
         formulas.append(formula)
 
 #|%%--%%| <YLIzzhocY8|shOTBbcpyR>
-weights
-names
-formulas
+pub_dict = {
+    "mw": weights,
+    "iupac" : names,
+    "mol_formula": formulas
+}
+
+df = pd.DataFrame(data=pub_dict)
+help(pd.DataFrame)
 
 #|%%--%%| <shOTBbcpyR|gvMWo9ZYia>
 df["mw"] = weights
@@ -53,8 +58,7 @@ df["iupac"] = names
 df["mol_formula"] = formulas 
 
 #|%%--%%| <gvMWo9ZYia|QzWYjWhv8S>
-df.to_json("./storage/json/df1_fbd_pc.json", orient="records")
-
+df.to_json("./storage/json/pubchem_info.json", orient="records")
 
 #|%%--%%| <QzWYjWhv8S|q9RNbWb9ud>
 class InternalValid: 

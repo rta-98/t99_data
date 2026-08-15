@@ -68,9 +68,7 @@ all_groups = get_HalogenGroups()
 all_groups 
 
 group_lookup = {str(group['id']): group['name'] for group in all_groups}
-val = 34
-group_lookup.get(str(val), 0)
-
+group_lookup
 print()
 
 for mol, smile, name in zip(mols, smiles, names):
@@ -79,14 +77,12 @@ for mol, smile, name in zip(mols, smiles, names):
     r = extract_group_features(smileCanon)
     groups = {k: v for k, v in r.generic_groups.items() if v}
     for k, v in groups.items(): 
-        print((group_lookup.get(str(val), "Unk"), v)
-
+        print(v)
     poly_list.append(r.poly_counts)
     groups_dict["Perfluoroalkyl Length"].append(r.per_halogen_sizes["g34_F"])
     groups_dict["Alkyl Length"].append(r.h_chain_sizes["alkyl_H"])
     #groups_dict["Motifs"].append()
 
-#|%%--%%| <OLs6dIDaHn|IeEqfDeneL>
 groups_dict["Perfluoroalkyl Length"]
 groups_dict["Motifs"]
 groups_dict["Alkyl Length"]
@@ -94,7 +90,7 @@ groups_dict["Alkyl Length"]
 
 
 
-#|%%--%%| <IeEqfDeneL|WGsMCjgPM6>
+#|%%--%%| <OLs6dIDaHn|WGsMCjgPM6>
 for val in groups_dict["Motifs"]:
     motif_id = key.lstrip('g').split('_')[0]
     print(val)

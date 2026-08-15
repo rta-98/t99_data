@@ -111,9 +111,9 @@ class InternalValid:
 
 
 class SubstructMatch(InternalValid):
-"""
-    Motif Smarts 
-"""
+    """
+        Motif Smarts 
+    """
     sub_mol_pfeca = Chem.MolFromSmarts('[*]-[#8]-[#6](-[#6](=[#8])-[#8]-[#1])(-[#9])-[*]') # perfluoroether carboxylic acids
 
     sub_mol_ftsm = Chem.MolFromSmarts('[#7](-[#16](=[#8])(=[#8])-[#6](-[#6](-[*])(-[#1])-[#1])(-[#1])-[#1])(-[#1])-[#1]') # fluorotelomer sulfonamides 
@@ -132,9 +132,9 @@ class SubstructMatch(InternalValid):
 
     sub_mol_pfal = Chem.MolFromSmarts('[#6](=[#8])(-[#9])-[#6](-[#9])(-[#9])-[*]') # perfluoroaldehydes  
  
-"""
-    Tail Smarts
-"""
+    """
+        Tail Smarts
+    """
 
     sub_mol_CF3 = Chem.MolFromSmarts('[#6](-[*])(-[#9])(-[#9])-[#9]')
 
@@ -242,15 +242,9 @@ class SubstructMatch(InternalValid):
         cf2_matches = mol.GetSubstructMatches(self.sub_mol_CF2)
         cf3_matches = mol.GetSubstructMatches(self.sub_mol_CF3)
         matches = {
-            "Global: CF2": f"{len(cf2_matches)}"
+            "Global: CF2": f"{len(cf2_matches)}",
             "Global: CF3": f"{len(cf3_matches)}"
         }
         return matches
-        
-#class IterateMatches(SubstructMatch):
-#    def __init__(self):
-#        self.matches_list = []
-
-
 
 
